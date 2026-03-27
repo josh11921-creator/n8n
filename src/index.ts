@@ -695,6 +695,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {},
         },
       },
+      {
+        name: 'n8n_list_servers',
+        description: 'List the configured n8n server instance(s) and their connection status, including URL, latency, workflow count, and user count.',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+      },
 
       // ========== WORKFLOW TEMPLATE TOOLS ==========
       {
@@ -1064,6 +1072,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     if (name === 'n8n_pull_source_control') {
       const result = await n8nClient.pullSourceControl();
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      };
+    }
+
+    if (name === 'n8n_list_servers') {
+      const result = await n8nClient.getServerInfo();
       return {
         content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
       };

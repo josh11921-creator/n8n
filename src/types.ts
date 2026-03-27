@@ -1,6 +1,10 @@
 export interface N8nConfig {
   baseUrl: string;
   apiKey: string;
+  /** Maximum number of retry attempts for transient errors (default: 3) */
+  maxRetries?: number;
+  /** Base delay in milliseconds between retries; doubles with each attempt (default: 1000) */
+  retryDelay?: number;
 }
 
 export interface WorkflowData {

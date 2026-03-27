@@ -117,6 +117,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Retry logic with exponential backoff** — All `N8nClient` API calls now automatically retry on transient failures (network errors, HTTP 429 rate-limit, HTTP 5xx server errors). Default: up to 3 retries with a 1 s base delay that doubles each attempt (1 s, 2 s, 4 s). Configurable via `maxRetries` and `retryDelay` on `N8nConfig`.
+
 ### Planned Features
 - Resource templates (common workflow patterns)
 - Batch operations helper functions
@@ -130,7 +134,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Improvements Under Consideration
 - Add caching for frequently accessed resources
 - Implement rate limiting handling
-- Add retry logic for failed API calls
 - Support for webhook URLs generation
 - Workflow diff/comparison tools
 - Interactive workflow builder prompts

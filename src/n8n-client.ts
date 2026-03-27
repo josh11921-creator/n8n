@@ -1,4 +1,4 @@
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosInstance, AxiosError } from 'axios';
 import type {
   N8nConfig,
   WorkflowData,
@@ -11,10 +11,32 @@ import type {
   ApiResponse
 } from './types.js';
 
+const DEFAULT_MAX_RETRIES = 3;
+const DEFAULT_RETRY_DELAY_MS = 1000;
+
+function isRetryableError(error: AxiosError): boolean {
+  if (!error.response) {
+    // Network errors, timeouts, DNS failures
+    return true;
+  }
+  const status = error.response.status;
+  // Retry on rate-limit (429) and server errors (5xx)
+  return status === 429 || (status >= 500 && status <= 599);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 export class N8nClient {
   private client: AxiosInstance;
+  private maxRetries: number;
+  private retryDelay: number;
 
   constructor(config: N8nConfig) {
+    this.maxRetries = config.maxRetries ?? DEFAULT_MAX_RETRIES;
+    this.retryDelay = config.retryDelay ?? DEFAULT_RETRY_DELAY_MS;
+
     this.client = axios.create({
       baseURL: `${config.baseUrl}/api/v1`,
       headers: {
@@ -24,11 +46,32 @@ export class N8nClient {
     });
   }
 
+  private async withRetry<T>(fn: () => Promise<T>): Promise<T> {
+    let lastError: AxiosError | undefined;
+
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      try {
+        return await fn();
+      } catch (err: any) {
+        const axiosErr = err as AxiosError;
+        if (attempt < this.maxRetries && isRetryableError(axiosErr)) {
+          lastError = axiosErr;
+          const delay = this.retryDelay * Math.pow(2, attempt);
+          await sleep(delay);
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    throw lastError;
+  }
+
   // ========== WORKFLOWS ==========
 
   async createWorkflow(workflow: WorkflowData): Promise<ApiResponse> {
     try {
-      const response = await this.client.post('/workflows', workflow);
+      const response = await this.withRetry(() => this.client.post('/workflows', workflow));
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -46,9 +89,10 @@ export class N8nClient {
   }): Promise<ApiResponse> {
     try {
       const { fields, ...apiFilters } = filters || {};
-      const response = await this.client.get('/workflows', { params: apiFilters });
+      const response = await this.withRetry(() =>
+        this.client.get('/workflows', { params: apiFilters })
+      );
 
-      // If fields are specified, filter the response data
       if (fields && fields.length > 0 && response.data?.data) {
         const filteredData = response.data.data.map((workflow: any) => {
           const filtered: any = {};
@@ -70,7 +114,7 @@ export class N8nClient {
 
   async getWorkflow(id: string): Promise<ApiResponse> {
     try {
-      const response = await this.client.get(`/workflows/${id}`);
+      const response = await this.withRetry(() => this.client.get(`/workflows/${id}`));
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -79,7 +123,7 @@ export class N8nClient {
 
   async updateWorkflow(id: string, workflow: Partial<WorkflowData>): Promise<ApiResponse> {
     try {
-      const response = await this.client.put(`/workflows/${id}`, workflow);
+      const response = await this.withRetry(() => this.client.put(`/workflows/${id}`, workflow));
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -88,7 +132,7 @@ export class N8nClient {
 
   async deleteWorkflow(id: string): Promise<ApiResponse> {
     try {
-      const response = await this.client.delete(`/workflows/${id}`);
+      const response = await this.withRetry(() => this.client.delete(`/workflows/${id}`));
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -97,7 +141,9 @@ export class N8nClient {
 
   async activateWorkflow(id: string): Promise<ApiResponse> {
     try {
-      const response = await this.client.post(`/workflows/${id}/activate`);
+      const response = await this.withRetry(() =>
+        this.client.post(`/workflows/${id}/activate`)
+      );
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -106,7 +152,9 @@ export class N8nClient {
 
   async deactivateWorkflow(id: string): Promise<ApiResponse> {
     try {
-      const response = await this.client.post(`/workflows/${id}/deactivate`);
+      const response = await this.withRetry(() =>
+        this.client.post(`/workflows/${id}/deactivate`)
+      );
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -115,9 +163,9 @@ export class N8nClient {
 
   async transferWorkflow(id: string, destinationProjectId: string): Promise<ApiResponse> {
     try {
-      const response = await this.client.put(`/workflows/${id}/transfer`, {
-        destinationProjectId,
-      });
+      const response = await this.withRetry(() =>
+        this.client.put(`/workflows/${id}/transfer`, { destinationProjectId })
+      );
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -126,7 +174,7 @@ export class N8nClient {
 
   async getWorkflowTags(id: string): Promise<ApiResponse> {
     try {
-      const response = await this.client.get(`/workflows/${id}/tags`);
+      const response = await this.withRetry(() => this.client.get(`/workflows/${id}/tags`));
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -135,7 +183,9 @@ export class N8nClient {
 
   async updateWorkflowTags(id: string, tagIds: string[]): Promise<ApiResponse> {
     try {
-      const response = await this.client.put(`/workflows/${id}/tags`, { tagIds });
+      const response = await this.withRetry(() =>
+        this.client.put(`/workflows/${id}/tags`, { tagIds })
+      );
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -147,9 +197,10 @@ export class N8nClient {
   async getExecutions(filters?: ExecutionFilters & { fields?: string[] }): Promise<ApiResponse> {
     try {
       const { fields, ...apiFilters } = filters || {};
-      const response = await this.client.get('/executions', { params: apiFilters });
+      const response = await this.withRetry(() =>
+        this.client.get('/executions', { params: apiFilters })
+      );
 
-      // If fields are specified, filter the response data
       if (fields && fields.length > 0 && response.data?.data) {
         const filteredData = response.data.data.map((execution: any) => {
           const filtered: any = {};
@@ -171,9 +222,9 @@ export class N8nClient {
 
   async getExecution(id: string, includeData = false): Promise<ApiResponse> {
     try {
-      const response = await this.client.get(`/executions/${id}`, {
-        params: { includeData },
-      });
+      const response = await this.withRetry(() =>
+        this.client.get(`/executions/${id}`, { params: { includeData } })
+      );
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -182,7 +233,7 @@ export class N8nClient {
 
   async deleteExecution(id: string): Promise<ApiResponse> {
     try {
-      const response = await this.client.delete(`/executions/${id}`);
+      const response = await this.withRetry(() => this.client.delete(`/executions/${id}`));
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -191,7 +242,9 @@ export class N8nClient {
 
   async retryExecution(id: string): Promise<ApiResponse> {
     try {
-      const response = await this.client.post(`/executions/${id}/retry`);
+      const response = await this.withRetry(() =>
+        this.client.post(`/executions/${id}/retry`)
+      );
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -202,7 +255,7 @@ export class N8nClient {
 
   async createCredential(credential: CredentialData): Promise<ApiResponse> {
     try {
-      const response = await this.client.post('/credentials', credential);
+      const response = await this.withRetry(() => this.client.post('/credentials', credential));
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -211,7 +264,7 @@ export class N8nClient {
 
   async deleteCredential(id: string): Promise<ApiResponse> {
     try {
-      const response = await this.client.delete(`/credentials/${id}`);
+      const response = await this.withRetry(() => this.client.delete(`/credentials/${id}`));
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -220,7 +273,9 @@ export class N8nClient {
 
   async getCredentialSchema(credentialTypeName: string): Promise<ApiResponse> {
     try {
-      const response = await this.client.get(`/credentials/schema/${credentialTypeName}`);
+      const response = await this.withRetry(() =>
+        this.client.get(`/credentials/schema/${credentialTypeName}`)
+      );
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -229,9 +284,9 @@ export class N8nClient {
 
   async transferCredential(id: string, destinationProjectId: string): Promise<ApiResponse> {
     try {
-      const response = await this.client.put(`/credentials/${id}/transfer`, {
-        destinationProjectId,
-      });
+      const response = await this.withRetry(() =>
+        this.client.put(`/credentials/${id}/transfer`, { destinationProjectId })
+      );
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -242,7 +297,7 @@ export class N8nClient {
 
   async createTag(tag: TagData): Promise<ApiResponse> {
     try {
-      const response = await this.client.post('/tags', tag);
+      const response = await this.withRetry(() => this.client.post('/tags', tag));
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -251,7 +306,7 @@ export class N8nClient {
 
   async getTags(): Promise<ApiResponse> {
     try {
-      const response = await this.client.get('/tags');
+      const response = await this.withRetry(() => this.client.get('/tags'));
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -260,7 +315,7 @@ export class N8nClient {
 
   async getTag(id: string): Promise<ApiResponse> {
     try {
-      const response = await this.client.get(`/tags/${id}`);
+      const response = await this.withRetry(() => this.client.get(`/tags/${id}`));
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -269,7 +324,7 @@ export class N8nClient {
 
   async updateTag(id: string, tag: TagData): Promise<ApiResponse> {
     try {
-      const response = await this.client.put(`/tags/${id}`, tag);
+      const response = await this.withRetry(() => this.client.put(`/tags/${id}`, tag));
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -278,7 +333,7 @@ export class N8nClient {
 
   async deleteTag(id: string): Promise<ApiResponse> {
     try {
-      const response = await this.client.delete(`/tags/${id}`);
+      const response = await this.withRetry(() => this.client.delete(`/tags/${id}`));
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -289,7 +344,7 @@ export class N8nClient {
 
   async createVariable(variable: VariableData): Promise<ApiResponse> {
     try {
-      const response = await this.client.post('/variables', variable);
+      const response = await this.withRetry(() => this.client.post('/variables', variable));
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -298,7 +353,9 @@ export class N8nClient {
 
   async getVariables(filters?: { projectId?: string; state?: string }): Promise<ApiResponse> {
     try {
-      const response = await this.client.get('/variables', { params: filters });
+      const response = await this.withRetry(() =>
+        this.client.get('/variables', { params: filters })
+      );
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -307,7 +364,9 @@ export class N8nClient {
 
   async updateVariable(id: string, variable: Partial<VariableData>): Promise<ApiResponse> {
     try {
-      const response = await this.client.put(`/variables/${id}`, variable);
+      const response = await this.withRetry(() =>
+        this.client.put(`/variables/${id}`, variable)
+      );
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -316,7 +375,7 @@ export class N8nClient {
 
   async deleteVariable(id: string): Promise<ApiResponse> {
     try {
-      const response = await this.client.delete(`/variables/${id}`);
+      const response = await this.withRetry(() => this.client.delete(`/variables/${id}`));
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -327,7 +386,9 @@ export class N8nClient {
 
   async getUsers(includeRole = false): Promise<ApiResponse> {
     try {
-      const response = await this.client.get('/users', { params: { includeRole } });
+      const response = await this.withRetry(() =>
+        this.client.get('/users', { params: { includeRole } })
+      );
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -336,7 +397,7 @@ export class N8nClient {
 
   async createUsers(users: UserData[]): Promise<ApiResponse> {
     try {
-      const response = await this.client.post('/users', users);
+      const response = await this.withRetry(() => this.client.post('/users', users));
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -345,7 +406,7 @@ export class N8nClient {
 
   async getUser(id: string): Promise<ApiResponse> {
     try {
-      const response = await this.client.get(`/users/${id}`);
+      const response = await this.withRetry(() => this.client.get(`/users/${id}`));
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -354,7 +415,7 @@ export class N8nClient {
 
   async deleteUser(id: string): Promise<ApiResponse> {
     try {
-      const response = await this.client.delete(`/users/${id}`);
+      const response = await this.withRetry(() => this.client.delete(`/users/${id}`));
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -363,7 +424,9 @@ export class N8nClient {
 
   async changeUserRole(id: string, role: string): Promise<ApiResponse> {
     try {
-      const response = await this.client.patch(`/users/${id}/role`, { role });
+      const response = await this.withRetry(() =>
+        this.client.patch(`/users/${id}/role`, { role })
+      );
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -374,7 +437,7 @@ export class N8nClient {
 
   async createProject(project: ProjectData): Promise<ApiResponse> {
     try {
-      const response = await this.client.post('/projects', project);
+      const response = await this.withRetry(() => this.client.post('/projects', project));
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -383,7 +446,7 @@ export class N8nClient {
 
   async getProjects(): Promise<ApiResponse> {
     try {
-      const response = await this.client.get('/projects');
+      const response = await this.withRetry(() => this.client.get('/projects'));
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -392,7 +455,9 @@ export class N8nClient {
 
   async updateProject(id: string, project: Partial<ProjectData>): Promise<ApiResponse> {
     try {
-      const response = await this.client.put(`/projects/${id}`, project);
+      const response = await this.withRetry(() =>
+        this.client.put(`/projects/${id}`, project)
+      );
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -401,7 +466,7 @@ export class N8nClient {
 
   async deleteProject(id: string): Promise<ApiResponse> {
     try {
-      const response = await this.client.delete(`/projects/${id}`);
+      const response = await this.withRetry(() => this.client.delete(`/projects/${id}`));
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -410,10 +475,9 @@ export class N8nClient {
 
   async addUserToProject(projectId: string, userId: string, role: string): Promise<ApiResponse> {
     try {
-      const response = await this.client.post(`/projects/${projectId}/users`, {
-        userId,
-        role,
-      });
+      const response = await this.withRetry(() =>
+        this.client.post(`/projects/${projectId}/users`, { userId, role })
+      );
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -422,7 +486,9 @@ export class N8nClient {
 
   async removeUserFromProject(projectId: string, userId: string): Promise<ApiResponse> {
     try {
-      const response = await this.client.delete(`/projects/${projectId}/users/${userId}`);
+      const response = await this.withRetry(() =>
+        this.client.delete(`/projects/${projectId}/users/${userId}`)
+      );
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -431,9 +497,9 @@ export class N8nClient {
 
   async changeUserProjectRole(projectId: string, userId: string, role: string): Promise<ApiResponse> {
     try {
-      const response = await this.client.patch(`/projects/${projectId}/users/${userId}`, {
-        role,
-      });
+      const response = await this.withRetry(() =>
+        this.client.patch(`/projects/${projectId}/users/${userId}`, { role })
+      );
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -444,7 +510,7 @@ export class N8nClient {
 
   async generateAudit(): Promise<ApiResponse> {
     try {
-      const response = await this.client.post('/audit');
+      const response = await this.withRetry(() => this.client.post('/audit'));
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };
@@ -453,7 +519,7 @@ export class N8nClient {
 
   async pullSourceControl(): Promise<ApiResponse> {
     try {
-      const response = await this.client.post('/source-control/pull');
+      const response = await this.withRetry(() => this.client.post('/source-control/pull'));
       return { data: response.data };
     } catch (error: any) {
       return { error: error.response?.data?.message || error.message };

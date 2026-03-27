@@ -440,6 +440,48 @@ export class N8nClient {
     }
   }
 
+  // ========== SERVER INFO ==========
+
+  async getServerInfo(): Promise<ApiResponse> {
+    try {
+      const start = Date.now();
+      const [workflowsRes, usersRes] = await Promise.allSettled([
+        this.client.get('/workflows', { params: { limit: 1 } }),
+        this.client.get('/users'),
+      ]);
+
+      const latencyMs = Date.now() - start;
+
+      const workflowCount =
+        workflowsRes.status === 'fulfilled'
+          ? (workflowsRes.value.data?.count ?? workflowsRes.value.data?.data?.length ?? 0)
+          : null;
+
+      const userCount =
+        usersRes.status === 'fulfilled'
+          ? (usersRes.value.data?.count ?? usersRes.value.data?.data?.length ?? 0)
+          : null;
+
+      const baseUrl = (this.client.defaults.baseURL ?? '').replace('/api/v1', '');
+
+      return {
+        data: {
+          servers: [
+            {
+              url: baseUrl,
+              status: workflowsRes.status === 'fulfilled' ? 'connected' : 'error',
+              latencyMs,
+              workflowCount,
+              userCount,
+            },
+          ],
+        },
+      };
+    } catch (error: any) {
+      return { error: error.response?.data?.message || error.message };
+    }
+  }
+
   // ========== OTHER ==========
 
   async generateAudit(): Promise<ApiResponse> {

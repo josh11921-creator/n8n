@@ -124,6 +124,33 @@ export class N8nClient {
     }
   }
 
+  async getMyWorkflows(filters?: {
+    active?: boolean;
+    tags?: string;
+    name?: string;
+    limit?: number;
+    cursor?: string;
+    fields?: string[];
+  }): Promise<ApiResponse> {
+    try {
+      // Find the personal project first
+      const projectsResponse = await this.client.get('/projects');
+      const projects: any[] = projectsResponse.data?.data ?? projectsResponse.data ?? [];
+      const personalProject = Array.isArray(projects)
+        ? projects.find((p: any) => p.type === 'personal')
+        : null;
+
+      if (!personalProject) {
+        // Fall back to listing all workflows without project filter if no personal project found
+        return this.getWorkflows(filters);
+      }
+
+      return this.getWorkflows({ ...filters, projectId: personalProject.id });
+    } catch (error: any) {
+      return { error: error.response?.data?.message || error.message };
+    }
+  }
+
   async getWorkflowTags(id: string): Promise<ApiResponse> {
     try {
       const response = await this.client.get(`/workflows/${id}/tags`);

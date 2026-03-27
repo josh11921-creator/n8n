@@ -202,6 +202,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
+        name: 'n8n_list_my_workflows',
+        description: 'List only the workflows in your personal project (workflows that belong to you, not shared team projects). Returns minimal data (id, name, active, tags, updatedAt) for token efficiency. Use n8n_get_workflow to fetch full details of a specific workflow.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            active: { type: 'boolean', description: 'Filter by active status' },
+            tags: { type: 'string', description: 'Filter by tag ID' },
+            name: { type: 'string', description: 'Filter by workflow name' },
+            limit: { type: 'number', description: 'Number of results (max 250)', default: 20 },
+            cursor: { type: 'string', description: 'Pagination cursor' },
+          },
+        },
+      },
+      {
         name: 'n8n_get_workflow',
         description: 'Get detailed information about a specific workflow by ID.',
         inputSchema: {
@@ -764,6 +778,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         fields: ['id', 'name', 'active', 'tags', 'updatedAt', 'createdAt']
       };
       const result = await n8nClient.getWorkflows(summaryArgs);
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      };
+    }
+
+    if (name === 'n8n_list_my_workflows') {
+      const myArgs = {
+        ...(args as any),
+        fields: ['id', 'name', 'active', 'tags', 'updatedAt', 'createdAt']
+      };
+      const result = await n8nClient.getMyWorkflows(myArgs);
       return {
         content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
       };

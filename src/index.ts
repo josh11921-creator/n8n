@@ -732,6 +732,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           },
         },
       },
+
+      // ========== CONNECTIVITY TOOLS ==========
+      {
+        name: 'n8n_get_connection_status',
+        description: 'Check whether this MCP server can reach your n8n instance and that the API key is valid. Returns connection status, latency, and the number of workflows visible to the current API key. Run this first if tools are returning errors.',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+      },
     ],
   };
 });
@@ -1255,6 +1265,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       };
     }
 
+    // ========== CONNECTIVITY HANDLERS ==========
+    if (name === 'n8n_get_connection_status') {
+      const status = await n8nClient.testConnection();
+      return {
+        content: [{ type: 'text', text: JSON.stringify(status, null, 2) }],
+        ...(status.connected ? {} : { isError: true }),
+      };
+    }
+
     return {
       content: [{ type: 'text', text: `Unknown tool: ${name}` }],
       isError: true,
@@ -1273,6 +1292,22 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error('n8n MCP Server running on stdio');
+
+  // Verify connectivity to n8n right after startup so users get immediate feedback
+  const status = await n8nClient.testConnection();
+  if (status.connected) {
+    const parts = [`n8n connection OK — ${status.baseUrl}`];
+    if (status.details?.latencyMs !== undefined) {
+      parts.push(`latency: ${status.details.latencyMs}ms`);
+    }
+    if (status.details?.workflowCount !== undefined) {
+      parts.push(`workflows: ${status.details.workflowCount}`);
+    }
+    console.error(`[MCP n8n] ✓ ${parts.join(' | ')}`);
+  } else {
+    console.error(`[MCP n8n] ✗ ${status.message}`);
+    console.error('[MCP n8n] Tools will still be available but may fail until n8n is reachable.');
+  }
 }
 
 main().catch((error) => {

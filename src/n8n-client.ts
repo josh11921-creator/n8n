@@ -440,6 +440,61 @@ export class N8nClient {
     }
   }
 
+  // ========== CONNECTIVITY ==========
+
+  async testConnection(): Promise<{
+    connected: boolean;
+    message: string;
+    baseUrl: string;
+    details?: {
+      n8nVersion?: string;
+      workflowCount?: number;
+      latencyMs?: number;
+    };
+  }> {
+    const baseUrl = (this.client.defaults.baseURL ?? '').replace(/\/api\/v1$/, '');
+    const start = Date.now();
+    try {
+      // Use a lightweight endpoint available on all n8n versions
+      const response = await this.client.get('/workflows', {
+        params: { limit: 1 },
+      });
+      const latencyMs = Date.now() - start;
+      const workflowCount: number | undefined =
+        typeof response.data?.count === 'number' ? response.data.count : undefined;
+      return {
+        connected: true,
+        message: `Connected to n8n successfully (${latencyMs}ms)`,
+        baseUrl,
+        details: {
+          latencyMs,
+          ...(workflowCount !== undefined ? { workflowCount } : {}),
+        },
+      };
+    } catch (error: any) {
+      const latencyMs = Date.now() - start;
+      const status: number | undefined = error.response?.status;
+      let message: string;
+
+      if (!error.response) {
+        message = `Cannot reach n8n at ${baseUrl} — ${error.message}`;
+      } else if (status === 401) {
+        message = `Connected to n8n at ${baseUrl} but API key is invalid or missing (401 Unauthorized)`;
+      } else if (status === 403) {
+        message = `Connected to n8n at ${baseUrl} but API key lacks permissions (403 Forbidden)`;
+      } else {
+        message = `n8n responded with HTTP ${status} after ${latencyMs}ms — ${error.response?.data?.message ?? error.message}`;
+      }
+
+      return {
+        connected: false,
+        message,
+        baseUrl,
+        details: { latencyMs },
+      };
+    }
+  }
+
   // ========== OTHER ==========
 
   async generateAudit(): Promise<ApiResponse> {

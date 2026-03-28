@@ -1,0 +1,472 @@
+{
+  "name": "Lead Systems v24 Wrapper Maxed",
+  "nodes": [
+    {
+      "id": "90c86622-4b38-469b-a93b-2df6510fddb6",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1400,
+        480
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "4f539e25-47b2-4174-912a-b9f5cb9e8305",
+      "name": "Channel Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1160,
+        480
+      ],
+      "parameters": {
+        "jsCode": "const incoming = $input.first().json || {};\nconst centralConfig = incoming.centralConfig || {};\nconst centralGlobal = centralConfig.globalConfig || {};\nconst centralChannel = (centralConfig.channels || {}).leadSystems || {};\nconst now = incoming.scheduledAt ? new Date(incoming.scheduledAt) : new Date();\nconst day = now.getDay();\n\nconst requestedRunType = incoming.runType || 'CONTENT_DAILY';\nconst isAfternoonRun = requestedRunType === 'DRAFT_MINING';\nconst isWeekend = day === 0 || day === 6;\n\nlet runType = 'AUTHORITY_VIDEO';\nlet videoFormat = 'DEEP_REVIEW';\nlet targetWords = 1800;\nlet videoMins = '8-11';\n\nif (requestedRunType === 'CONTENT_DAILY') {\n  if ([1, 4].includes(day)) {\n    runType = 'MONEY_VIDEO';\n    videoFormat = 'TOOL_COMPARISON';\n    targetWords = 1050;\n    videoMins = '6-8';\n  } else {\n    runType = 'AUTHORITY_VIDEO';\n    videoFormat = 'DEEP_REVIEW';\n    targetWords = 1800;\n    videoMins = '8-11';\n  }\n} else if (requestedRunType === 'DRAFT_MINING') {\n  runType = 'DRAFT_MINING';\n  videoFormat = 'DRAFT_ONLY';\n  targetWords = 850;\n  videoMins = '0';\n} else if (requestedRunType === 'WEEKLY_STRATEGY') {\n  runType = 'WEEKLY_STRATEGY';\n  videoFormat = 'REPORT';\n  targetWords = 0;\n  videoMins = '0';\n} else if (requestedRunType === 'MILESTONE_CHECK') {\n  runType = 'MILESTONE_CHECK';\n  videoFormat = 'STATUS';\n  targetWords = 0;\n  videoMins = '0';\n} else if (requestedRunType === 'ANALYTICS_24H') {\n  runType = 'ANALYTICS_24H';\n  videoFormat = 'REPORT';\n  targetWords = 0;\n  videoMins = '0';\n} else if (requestedRunType === 'ANALYTICS_72H') {\n  runType = 'ANALYTICS_72H';\n  videoFormat = 'REPORT';\n  targetWords = 0;\n  videoMins = '0';\n} else if (requestedRunType === 'ANALYTICS_7D') {\n  runType = 'ANALYTICS_7D';\n  videoFormat = 'REPORT';\n  targetWords = 0;\n  videoMins = '0';\n}\n\nconst orchestration = {\n  requestedRunType,\n  schedulerSource: incoming.schedulerSource || 'subworkflow',\n  orchestratorRunAt: incoming.scheduledAt || now.toISOString()\n};\n\nconst baseConfig = {\n  \"niche\": \"Lead follow-up, booking, quote recovery, reminder, and review automations for local service businesses \u2014 helping service businesses convert more leads without more admin work.\",\n  \"nicheKeywords\": \"missed call text back, automate quote follow-up, appointment reminder workflow, review request automation, no-show recovery system, booking workflow for salons, lead follow up for contractors, voicemail to booking, CRM pipeline for local business, follow-up templates, quote reminder automation, review system for local businesses\",\n  \"channelUrl\": \"PASTE_YOUR_YOUTUBE_CHANNEL_URL\",\n  \"groqApiKey\": \"PASTE_GROQ_API_KEY\",\n  \"groqModel\": \"llama-3.3-70b-versatile\",\n  \"flikiApiKey\": \"PASTE_FLIKI_API_KEY\",\n  \"slackWebhook\": \"PASTE_SLACK_WEBHOOK\",\n  \"googleSheetId\": \"PASTE_GOOGLE_SHEET_ID\",\n  \"uploadPostApiKey\": \"PASTE_UPLOAD_POST_API_KEY\",\n  \"youtubeChannelId\": \"PASTE_YOUTUBE_CHANNEL_ID\",\n  \"sheetDashboard\": \"Dashboard\",\n  \"sheetErrors\": \"Errors\",\n  \"sheetSEO\": \"SEO Data\",\n  \"sheetOwnerNotes\": \"Owner Notes\",\n  \"sheetStrategyLog\": \"Strategy Log\",\n  \"sheetAnalytics\": \"7-Day Analytics\",\n  \"sheetMilestones\": \"Milestones\",\n  \"sheetSocial\": \"Social Posts\",\n  \"sheetDrafts\": \"Drafts\",\n  \"sheetKpi\": \"KPI Snapshot\",\n  \"sheetOffers\": \"Offers\",\n  \"sheetAudience\": \"Audience Snapshot\",\n  \"sheetGapIdeas\": \"Gap Ideas\",\n  \"sheetRunLocks\": \"Run Locks\",\n  \"sheetDeadLetters\": \"Dead Letters\",\n  \"sheetCrossChannelRegistry\": \"Cross-Channel Registry\",\n  \"offerCatalog\": [\n    {\n      \"label\": \"Lead Follow-Up Playbook\",\n      \"type\": \"playbook\",\n      \"fit\": [\n        \"lead-followup\",\n        \"quote-recovery\",\n        \"booking\"\n      ],\n      \"url\": \"PASTE_MAIN_OFFER_URL\",\n      \"priority\": 10,\n      \"cta\": \"Get the follow-up playbook\"\n    },\n    {\n      \"label\": \"Booking and Reminder Templates\",\n      \"type\": \"template\",\n      \"fit\": [\n        \"booking\",\n        \"no-show-recovery\",\n        \"reminders\"\n      ],\n      \"url\": \"PASTE_TEMPLATE_PACK_URL\",\n      \"priority\": 9,\n      \"cta\": \"Grab the templates\"\n    },\n    {\n      \"label\": \"Review Request System Guide\",\n      \"type\": \"guide\",\n      \"fit\": [\n        \"review-engine\",\n        \"lead-followup\"\n      ],\n      \"url\": \"PASTE_GUIDE_URL\",\n      \"priority\": 8,\n      \"cta\": \"See the review system\"\n    }\n  ],\n  \"offerBaseUrl\": \"PASTE_MAIN_SITE_URL\",\n  \"offerBasePath\": \"/resources\",\n  \"comparisonBasePath\": \"/compare\",\n  \"templateBasePath\": \"/templates\",\n  \"toolStackBasePath\": \"/stack\",\n  \"guideBasePath\": \"/guides\",\n  \"autoOfferRoutingEnabled\": true,\n  \"autoOfferSlugsEnabled\": true,\n  \"gapIdeasSeed\": [\n    \"best missed call text back setup for contractors\",\n    \"automate quote follow-up for cleaners\",\n    \"review request workflow for med spas\",\n    \"no-show recovery reminders for salons\",\n    \"voicemail to booking workflow for local services\"\n  ],\n  \"minBuyerIntentNumericScore\": 7.5,\n  \"minOpeningQualityScore\": 7.7,\n  \"minOfferCoverageScore\": 7.1,\n  \"minOpsSimplicityScore\": 7.4,\n  \"minFirstDollarScore\": 7.5,\n  \"minAudienceOwnershipScore\": 6.7,\n  \"minAuthenticityScore\": 7.8,\n  \"minSequelDepthScore\": 7.5,\n  \"minSponsorSafetyScore\": 7.3,\n  \"minCashCowScore\": 8.1,\n  \"moneyMixTargets\": {\n    \"buyer\": 0.72,\n    \"authority\": 0.23,\n    \"experiment\": 0.05\n  },\n  \"easySetupMode\": true,\n  \"requireSinglePrimaryOffer\": true,\n  \"brandVoice\": \"Direct-response operator energy. Practical, specific, and honest. Sound like someone fixing a real leak in the pipeline, not a hype marketer. Always tie the workflow to missed leads, booked jobs, reviews, or recovered revenue. Always name one limitation or setup caveat.\",\n  \"targetAudience\": \"Owners and managers of local service businesses who lose leads, miss callbacks, deal with no-shows, or want more reviews and bookings without hiring more admin.\",\n  \"competitorChannels\": \"ProcessDriven, HighLevel tutorials, Automation Helpers, Alex Hormozi Clips, System Simplified\",\n  \"contentLanes\": [\n    \"missed-call-recovery\",\n    \"quote-recovery\",\n    \"booking\",\n    \"reminder-flows\",\n    \"review-engine\",\n    \"speed-to-lead\"\n  ],\n  \"hookLibrary\": [\n    \"BEFORE_AFTER: Before this workflow, leads went cold for hours. After it, the business followed up instantly and booked more jobs.\",\n    \"RESULT_FIRST: This missed-call text-back system turns lost calls into booked appointments. Here is the exact setup.\",\n    \"COST_BREAKDOWN: This booking and reminder flow costs less than a full front-desk tool. Here is what it replaces.\",\n    \"SIDE_BY_SIDE: I compared the manual follow-up process with an automated one. The speed difference was brutal.\",\n    \"HONEST_DOWNSIDE: This lead system works, but there is one part local businesses still should not automate blindly.\",\n    \"WHO_THIS_IS_FOR: If you miss calls, quotes, or reviews, this system helps. If your pipeline is tiny, it might be overkill.\",\n    \"PROOF_FIRST: This workflow sends the text, reminder, and review request without someone babysitting the inbox.\",\n    \"MISTAKE_FIX: Most follow-up automations fail because they trigger at the wrong time. Here is the version that actually converts.\",\n    \"COMPARISON: I tested two booking workflows for a local service business. One got faster responses and fewer no-shows.\",\n    \"SIMPLICITY: You do not need a giant CRM buildout to stop losing leads. Start with this simple automation.\"\n  ],\n  \"bannedHookTypes\": [\n    \"FEAR\",\n    \"URGENCY\",\n    \"SECRET\"\n  ],\n  \"preferredTitleStarters\": [\n    \"Automate follow-up for\",\n    \"Missed call text back for\",\n    \"Booking system for\",\n    \"Review request workflow for\",\n    \"Stop losing leads in\",\n    \"Best follow-up stack for\"\n  ],\n  \"bannedTitleStarters\": [\n    \"make money online\",\n    \"passive income\",\n    \"get rich\",\n    \"secret hack\",\n    \"you wont believe\",\n    \"insane\",\n    \"crazy\",\n    \"top 10 best\",\n    \"best tools ever\",\n    \"guaranteed results\"\n  ],\n  \"bannedClaims\": [\n    \"guaranteed income\",\n    \"get rich quick\",\n    \"overnight success\",\n    \"make $10,000\",\n    \"instant cash\",\n    \"zero work\",\n    \"passive income overnight\",\n    \"secret loophole\",\n    \"no effort\",\n    \"automatic money\",\n    \"100% works\",\n    \"never fail\",\n    \"millionaire hack\",\n    \"free money\",\n    \"quit your job today\",\n    \"shocking\",\n    \"you wont believe\"\n  ],\n  \"minScoreToPublish\": 7.8,\n  \"minProjectedRoi\": 7.8,\n  \"minOriginalityScore\": 7.7,\n  \"maxRiskScore\": 2.0,\n  \"minTrustScore\": 8.5,\n  \"minSearchIntentScore\": 7.6,\n  \"minFollowupPotential\": 7.7,\n  \"minEvergreenScore\": 7.3,\n  \"topicCooldownDays\": 45,\n  \"toolCooldownDays\": 30,\n  \"duplicateTitleSimilarity\": 0.45,\n  \"maxRecentPrimaryKeywordUses\": 1,\n  \"recentWindowDays\": 60,\n  \"titleStarterWindow\": 25,\n  \"maxAffiliateVideosPerThree\": 1,\n  \"affiliateCapEnabled\": true,\n  \"dailyVideoTarget\": 1,\n  \"shortCount\": 1,\n  \"maxPublicShortsPerWeek\": 2,\n  \"skipWeekends\": true,\n  \"skipSunday\": true,\n  \"skipSaturday\": true,\n  \"enableCrossPost\": true,\n  \"socialOnlyForWinners\": true,\n  \"socialMinScore\": 8.6,\n  \"socialMinOriginalityScore\": 8.6,\n  \"socialMinTrustScore\": 8.1,\n  \"socialPlatforms\": [\n    \"tiktok\",\n    \"instagram\",\n    \"facebook\",\n    \"linkedin\"\n  ],\n  \"yppSubTarget\": 1000,\n  \"yppWatchHoursTarget\": 4000,\n  \"affiliateReadySubs\": 50,\n  \"affiliateReadyVideos\": 10,\n  \"targetMonthlyRevenue\": 12000,\n  \"flikiMonthlyCredits\": 600,\n  \"flikiCreditWarningThreshold\": 480,\n  \"estimatedCreditsPerLongVideo\": 10,\n  \"estimatedCreditsPerShort\": 1.25,\n  \"candidateThumbnailCount\": 3,\n  \"winnerPatternShare\": 0.76,\n  \"secondaryPatternShare\": 0.19,\n  \"experimentPatternShare\": 0.08,\n  \"minPackagingScore\": 7.3,\n  \"minThumbnailScore\": 7.1,\n  \"minTitleScore\": 7.3,\n  \"minQualityGateScore\": 8.1,\n  \"minConfidenceToSpendCredits\": 8.2,\n  \"reserveCreditsForWinners\": 80,\n  \"analyticsWindow24hMinCtr\": 2.5,\n  \"analyticsWindow72hMinCtr\": 3.2,\n  \"analyticsWindow7dMinCtr\": 3.7,\n  \"analyticsWindowMinRetention\": 31,\n  \"analyticsWindowStrongRetention\": 45,\n  \"aggressiveFollowupScore\": 8.3,\n  \"aggressiveFollowupViews\": 250,\n  \"repackageLowCtrThreshold\": 2.4,\n  \"repackageLowRetentionThreshold\": 26,\n  \"sequelStrongCtrThreshold\": 4.0,\n  \"sequelStrongRetentionThreshold\": 38,\n  \"sequelStrongViewThreshold\": 450\n};\n\n\nconst mergedBaseConfig = {\n  ...baseConfig,\n  ...centralGlobal,\n  ...centralChannel,\n  offerCatalog: Array.isArray(centralChannel.offerCatalog) && centralChannel.offerCatalog.length ? centralChannel.offerCatalog : baseConfig.offerCatalog\n};\n\nconst sharedWorkflowBindings = {\n  sharedContentWorkflowId: incoming.sharedContentWorkflowId || (centralConfig.workflowBindings || {}).sharedContentWorkflowId || 'REPLACE_WITH_SHARED_CONTENT_WORKFLOW_ID',\n  sharedAnalyticsWorkflowId: incoming.sharedAnalyticsWorkflowId || (centralConfig.workflowBindings || {}).sharedAnalyticsWorkflowId || 'REPLACE_WITH_SHARED_ANALYTICS_WORKFLOW_ID',\n  sharedStrategyWorkflowId: incoming.sharedStrategyWorkflowId || (centralConfig.workflowBindings || {}).sharedStrategyWorkflowId || 'REPLACE_WITH_SHARED_STRATEGY_WORKFLOW_ID'\n};\n\n\nconst globalMode = String(mergedBaseConfig.globalMode || 'LIVE').toUpperCase();\nconst maintenanceMode = !!mergedBaseConfig.maintenanceMode;\nconst channelEnabled = mergedBaseConfig.enabled !== false;\nconst channelAllowContent = mergedBaseConfig.allowContent !== false;\nconst channelAllowAnalytics = mergedBaseConfig.allowAnalytics !== false;\nconst channelAllowStrategy = mergedBaseConfig.allowStrategy !== false;\nconst channelAllowPublish = mergedBaseConfig.allowPublish !== false && mergedBaseConfig.publishEnabled !== false;\nconst dryRun = !!mergedBaseConfig.dryRun || !!mergedBaseConfig.dryRunDefault || globalMode === 'TEST';\n\nconst requiredSheetTabs = [\n  'Dashboard',\n  'Owner Notes',\n  'Strategy Log',\n  '7-Day Analytics',\n  'Milestones',\n  'Social Posts',\n  'Drafts',\n  'Run Locks',\n  'Dead Letters',\n  'Cross-Channel Registry'\n];\n\nconst requiredSetupFields = [\n  'groqApiKey',\n  'flikiApiKey',\n  'googleSheetId',\n  'uploadPostApiKey',\n  'slackWebhook',\n  'youtubeChannelId',\n  'youtubeChannelUrl',\n  'mainSiteUrl',\n  'mainOfferUrl'\n];\n\nconst channelSlug = String(mergedBaseConfig.channelName || mergedBaseConfig.niche || 'channel').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');\nconst scheduledStamp = now.toISOString();\nconst dateKey = scheduledStamp.slice(0,10);\nconst lockKey = `${channelSlug}::${requestedRunType}::${dateKey}`;\nconst orchestrationVersion = 'v24';\n\nreturn [{\n  json: {\n    runType,\n    isAfternoonRun,\n    isWeekend,\n    videoFormat,\n    targetScriptWords: targetWords,\n    videoMinutes: videoMins,\n    videoResolution: '1080p',\n    skipVideoRender: isWeekend || isAfternoonRun,\n    skipPublicUpload: isAfternoonRun,\n    ...mergedBaseConfig,\n    ...sharedWorkflowBindings,\n    ...orchestration,\n    startedAt: now.toISOString(),\n    workflowPackVersion: orchestrationVersion,\n    lockKey,\n    dateKey,\n    channelSlug,\n    dedupeWindowDays: 10,\n    globalMode,\n    maintenanceMode,\n    channelEnabled,\n    channelAllowContent,\n    channelAllowAnalytics,\n    channelAllowStrategy,\n    channelAllowPublish,\n    publishEnabled: mergedBaseConfig.publishEnabled !== false,\n    analyticsEnabled: mergedBaseConfig.analyticsEnabled !== false,\n    strategyEnabled: mergedBaseConfig.strategyEnabled !== false,\n    allowContentInTestMode: mergedBaseConfig.allowContentInTestMode === true,\n    dryRun,\n    requiredSheetTabs,\n    requiredSetupFields,\n    setupAuditSupported: true\n  }\n}];"
+      }
+    },
+    {
+      "id": "8048765f-3e26-47dc-bbe3-e780dd2e8627",
+      "name": "Run Type Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [
+        -900,
+        480
+      ],
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.requestedRunType || $json.runType }}",
+        "rules": {
+          "rules": [
+            {
+              "conditions": [
+                {
+                  "value1": "={{ $json.requestedRunType || $json.runType }}",
+                  "value2": "SETUP_AUDIT",
+                  "operation": "equals"
+                }
+              ]
+            },
+            {
+              "conditions": [
+                {
+                  "value1": "={{ $json.requestedRunType || $json.runType }}",
+                  "value2": "CONTENT_DAILY",
+                  "operation": "equals"
+                }
+              ]
+            },
+            {
+              "conditions": [
+                {
+                  "value1": "={{ $json.requestedRunType || $json.runType }}",
+                  "value2": "DRAFT_MINING",
+                  "operation": "equals"
+                }
+              ]
+            },
+            {
+              "conditions": [
+                {
+                  "value1": "={{ $json.requestedRunType || $json.runType }}",
+                  "value2": "ANALYTICS_24H",
+                  "operation": "equals"
+                }
+              ]
+            },
+            {
+              "conditions": [
+                {
+                  "value1": "={{ $json.requestedRunType || $json.runType }}",
+                  "value2": "ANALYTICS_72H",
+                  "operation": "equals"
+                }
+              ]
+            },
+            {
+              "conditions": [
+                {
+                  "value1": "={{ $json.requestedRunType || $json.runType }}",
+                  "value2": "ANALYTICS_7D",
+                  "operation": "equals"
+                }
+              ]
+            },
+            {
+              "conditions": [
+                {
+                  "value1": "={{ $json.requestedRunType || $json.runType }}",
+                  "value2": "WEEKLY_STRATEGY",
+                  "operation": "equals"
+                }
+              ]
+            },
+            {
+              "conditions": [
+                {
+                  "value1": "={{ $json.requestedRunType || $json.runType }}",
+                  "value2": "MILESTONE_CHECK",
+                  "operation": "equals"
+                }
+              ]
+            }
+          ]
+        },
+        "fallbackOutput": "extra"
+      }
+    },
+    {
+      "id": "f6ccab87-3ab3-40c4-a991-a396bb4be222",
+      "name": "Run Shared Content Engine",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -620,
+        360
+      ],
+      "parameters": {
+        "mode": "each",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Channel Config').first().json.sharedContentWorkflowId }}",
+          "cachedResultName": "Dynamic via Channel Config: sharedContentWorkflowId"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "cab4013f-bd13-4edd-b68c-cbcb79124b34",
+      "name": "Run Shared Analytics Engine",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -620,
+        540
+      ],
+      "parameters": {
+        "mode": "each",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Channel Config').first().json.sharedAnalyticsWorkflowId }}",
+          "cachedResultName": "Dynamic via Channel Config: sharedAnalyticsWorkflowId"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "e1f8e254-11b9-4808-9c01-f697fa0bac63",
+      "name": "Run Shared Strategy Engine",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -620,
+        720
+      ],
+      "parameters": {
+        "mode": "each",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Channel Config').first().json.sharedStrategyWorkflowId }}",
+          "cachedResultName": "Dynamic via Channel Config: sharedStrategyWorkflowId"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "a1d409e6-3b73-40e0-93d0-0a4060f1e8af",
+      "name": "Skip Unsupported Run",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -620,
+        900
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: { ...$json, skipped: true, reason: 'Unsupported runType in wrapper' } }];"
+      }
+    },
+    {
+      "id": "20df55d7-7101-4c63-bf85-166c3f0c7182",
+      "name": "Load Run Locks",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -980,
+        520
+      ],
+      "parameters": {
+        "operation": "read",
+        "documentId": "={{ $('Channel Config').first().json.googleSheetId }}",
+        "sheetName": "={{ $('Channel Config').first().json.sheetRunLocks || 'Run Locks' }}",
+        "options": {
+          "returnAll": true
+        }
+      }
+    },
+    {
+      "id": "b91327ba-5cd3-4a92-99cd-5f12fecb4caa",
+      "name": "Run Lock + Placeholder Gate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -740,
+        520
+      ],
+      "parameters": {
+        "jsCode": "const cfg = $('Channel Config').first().json || {};\nconst rows = $input.all().map(i => i.json || {});\nconst lockKey = String(cfg.lockKey || '');\nconst requestedRunType = String(cfg.requestedRunType || cfg.runType || '').trim();\nconst errors = [];\nconst placeholders = [];\nconst configBindingIssues = (((cfg.centralConfigReadiness || {}).workflowBindingChecks) || []).filter(x => !x.ready).map(x => x.key);\n\nfunction scan(value, path = 'config') {\n  if (value === null || value === undefined) return;\n  if (typeof value === 'string') {\n    if (value.includes('PASTE_') || value.includes('REPLACE_WITH_')) placeholders.push(path);\n    return;\n  }\n  if (Array.isArray(value)) {\n    value.forEach((v, idx) => scan(v, `${path}[${idx}]`));\n    return;\n  }\n  if (typeof value === 'object') {\n    for (const [k, v] of Object.entries(value)) scan(v, `${path}.${k}`);\n  }\n}\nscan(cfg);\n\nconst seenLock = rows.some(r => {\n  const rowKey = String(r.lockKey || r.runLockKey || '').trim();\n  const rowStatus = String(r.status || '').toUpperCase();\n  return rowKey && rowKey === lockKey && !/RELEASED|FAILED|CANCELLED/.test(rowStatus);\n});\n\nconst isSetupAudit = requestedRunType === 'SETUP_AUDIT';\nconst isContentRun = ['CONTENT_DAILY','DRAFT_MINING'].includes(requestedRunType);\nconst isAnalyticsRun = requestedRunType.startsWith('ANALYTICS_');\nconst isStrategyRun = ['WEEKLY_STRATEGY','MILESTONE_CHECK'].includes(requestedRunType);\n\nif (!isSetupAudit) {\n  if (seenLock) errors.push('Run lock already exists for this channel/runType/date');\n  if (placeholders.length) errors.push('Placeholder values still exist in wrapper config or workflow bindings');\n  if (configBindingIssues.length) errors.push(`Central config workflow bindings still missing: ${configBindingIssues.join(', ')}`);\n  if (cfg.maintenanceMode) errors.push('Global maintenance mode is enabled');\n  if (cfg.channelEnabled === false) errors.push('Channel is disabled in central config');\n  if (isContentRun && cfg.channelAllowContent === false) errors.push('Content runs are disabled in central config');\n  if (isAnalyticsRun && (cfg.analyticsEnabled === false || cfg.channelAllowAnalytics === false)) errors.push('Analytics runs are disabled in central config');\n  if (isStrategyRun && (cfg.strategyEnabled === false || cfg.channelAllowStrategy === false)) errors.push('Strategy runs are disabled in central config');\n  if (isContentRun && (cfg.publishEnabled === false || cfg.channelAllowPublish === false)) errors.push('Publish is disabled in central config');\n  if (isContentRun && String(cfg.globalMode || 'LIVE').toUpperCase() === 'PAUSED') errors.push('Global mode is PAUSED');\n  if (isContentRun && String(cfg.globalMode || 'LIVE').toUpperCase() === 'TEST' && cfg.allowContentInTestMode !== true) errors.push('Global mode TEST blocks content runs unless allowContentInTestMode is enabled');\n}\n\nconst placeholderKeys = placeholders\n  .map(p => p.split('.').pop())\n  .filter(Boolean)\n  .slice(0, 50);\n\nreturn [{\n  json: {\n    ...cfg,\n    wrapperSafeToRun: errors.length === 0,\n    wrapperBlockReason: errors.join('; '),\n    placeholderCount: placeholders.length,\n    placeholderPaths: placeholders.slice(0, 50),\n    placeholderKeys,\n    seenLock,\n    configBindingIssues,\n    setupReady: placeholders.length === 0 && configBindingIssues.length === 0,\n    effectiveRunPolicy: {\n      globalMode: cfg.globalMode || 'LIVE',\n      maintenanceMode: !!cfg.maintenanceMode,\n      channelEnabled: cfg.channelEnabled !== false,\n      contentAllowed: cfg.channelAllowContent !== false,\n      analyticsAllowed: cfg.channelAllowAnalytics !== false,\n      strategyAllowed: cfg.channelAllowStrategy !== false,\n      publishAllowed: cfg.channelAllowPublish !== false && cfg.publishEnabled !== false,\n      dryRun: !!cfg.dryRun\n    }\n  }\n}];"
+      }
+    },
+    {
+      "id": "841d1db0-7435-4262-8410-10edea009491",
+      "name": "Wrapper Safe To Run?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -500,
+        520
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.wrapperSafeToRun }}",
+              "value2": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "80d61e98-2fe7-4ae0-a4a0-8bc8a12d8674",
+      "name": "Write Run Lock",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -260,
+        420
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": "={{ $('Channel Config').first().json.googleSheetId }}",
+        "sheetName": "={{ $('Channel Config').first().json.sheetRunLocks || 'Run Locks' }}",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ new Date().toISOString() }}",
+            "runId": "={{ $json.runId }}",
+            "lockKey": "={{ $json.lockKey }}",
+            "channelName": "={{ $json.channelName }}",
+            "runType": "={{ $json.requestedRunType || $json.runType }}",
+            "status": "RUN_LOCKED",
+            "schedulerSource": "={{ $json.schedulerSource }}",
+            "workflowPackVersion": "={{ $json.workflowPackVersion }}"
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "6590b282-20c4-4fa3-8643-94fe344cc3a0",
+      "name": "Log Wrapper Block",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -260,
+        660
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": "={{ $('Channel Config').first().json.googleSheetId }}",
+        "sheetName": "={{ $('Channel Config').first().json.sheetDeadLetters || 'Dead Letters' }}",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ new Date().toISOString() }}",
+            "runId": "={{ $json.runId }}",
+            "channelName": "={{ $json.channelName }}",
+            "runType": "={{ $json.requestedRunType || $json.runType }}",
+            "status": "WRAPPER_BLOCKED",
+            "errorStep": "Run Lock + Placeholder Gate",
+            "errorMessage": "={{ $json.wrapperBlockReason }}",
+            "lockKey": "={{ $json.lockKey }}",
+            "placeholderCount": "={{ $json.placeholderCount }}",
+            "workflowPackVersion": "={{ $json.workflowPackVersion }}"
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "9ea50905-7bca-404d-b3b8-7786a77f4c2a",
+      "name": "Return Setup Audit",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        720
+      ],
+      "parameters": {
+        "jsCode": "const cfg = $input.first().json || {};\nconst requiredFields = Array.isArray(cfg.requiredSetupFields) ? cfg.requiredSetupFields : [];\nconst requiredTabs = Array.isArray(cfg.requiredSheetTabs) ? cfg.requiredSheetTabs : [];\nconst missingFieldNames = requiredFields.filter(key => {\n  const value = cfg[key];\n  return value === undefined || value === null || value === '' || String(value).includes('PASTE_') || String(value).includes('REPLACE_WITH_');\n});\nconst workflowBindingKeys = ['sharedContentWorkflowId','sharedAnalyticsWorkflowId','sharedStrategyWorkflowId'];\nconst missingBindings = workflowBindingKeys.filter(key => !cfg[key] || String(cfg[key]).includes('REPLACE_WITH_'));\nconst setupReady = missingFieldNames.length === 0 && missingBindings.length === 0;\nconst quickActions = [];\nif (missingBindings.length) quickActions.push('Connect the wrapper to the three shared workflows first.');\nif (missingFieldNames.includes('googleSheetId')) quickActions.push('Paste your Google Sheet ID in Central Config.');\nif (missingFieldNames.includes('groqApiKey')) quickActions.push('Paste your Groq API key in Central Config.');\nif (missingFieldNames.includes('uploadPostApiKey')) quickActions.push('Paste your Upload-Post API key in Central Config.');\nif (missingFieldNames.includes('youtubeChannelId') || missingFieldNames.includes('youtubeChannelUrl')) quickActions.push('Paste your YouTube channel ID and channel URL in Central Config.');\nif (missingFieldNames.includes('mainSiteUrl') || missingFieldNames.includes('mainOfferUrl')) quickActions.push('Paste your site URL and offer URL in Central Config.');\n\nreturn [{\n  json: {\n    channelName: cfg.channelName,\n    requestedRunType: cfg.requestedRunType || cfg.runType,\n    workflowPackVersion: cfg.workflowPackVersion,\n    setupAudit: true,\n    setupReady,\n    missingFieldNames,\n    missingBindings,\n    placeholderCount: cfg.placeholderCount || 0,\n    placeholderPaths: cfg.placeholderPaths || [],\n    requiredSheetTabs: requiredTabs,\n    channelSlug: cfg.channelSlug,\n    policySummary: {\n      globalMode: cfg.globalMode || 'LIVE',\n      maintenanceMode: !!cfg.maintenanceMode,\n      channelEnabled: cfg.channelEnabled !== false,\n      contentAllowed: cfg.channelAllowContent !== false,\n      analyticsAllowed: cfg.channelAllowAnalytics !== false,\n      strategyAllowed: cfg.channelAllowStrategy !== false,\n      publishAllowed: cfg.channelAllowPublish !== false && cfg.publishEnabled !== false,\n      dryRun: !!cfg.dryRun\n    },\n    scheduleStyle: {\n      defaultRunType: cfg.requestedRunType || cfg.runType,\n      shortsPerWeek: cfg.maxPublicShortsPerWeek || 0,\n      weekdayOnlyLongForm: true\n    },\n    quickActions: quickActions.slice(0, 8)\n  }\n}];"
+      }
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Channel Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Channel Config": {
+      "main": [
+        [
+          {
+            "node": "Load Run Locks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Type Router": {
+      "main": [
+        [
+          {
+            "node": "Return Setup Audit",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Run Shared Content Engine",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Run Shared Content Engine",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Run Shared Analytics Engine",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Run Shared Analytics Engine",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Run Shared Analytics Engine",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Run Shared Strategy Engine",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Run Shared Strategy Engine",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip Unsupported Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Run Locks": {
+      "main": [
+        [
+          {
+            "node": "Run Lock + Placeholder Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Lock + Placeholder Gate": {
+      "main": [
+        [
+          {
+            "node": "Wrapper Safe To Run?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wrapper Safe To Run?": {
+      "main": [
+        [
+          {
+            "node": "Write Run Lock",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Wrapper Block",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Run Lock": {
+      "main": [
+        [
+          {
+            "node": "Run Type Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "30385461-1b81-46b4-b519-d229fe64ef83"
+}

@@ -1,0 +1,47 @@
+{
+  "name": "Central Config Registry v23 Debugged",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "fa6a7440-bd79-4a81-ac59-8793f434f77d",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        -720,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst incoming = $input.first().json || {};\n\nconst workflowBindings = {\n  workflowPackVersion: 'v23',\n  localWrapperWorkflowId: incoming.localWrapperWorkflowId || 'REPLACE_WITH_LOCAL_WRAPPER_WORKFLOW_ID',\n  leadWrapperWorkflowId: incoming.leadWrapperWorkflowId || 'REPLACE_WITH_LEAD_WRAPPER_WORKFLOW_ID',\n  sharedContentWorkflowId: incoming.sharedContentWorkflowId || 'REPLACE_WITH_SHARED_CONTENT_WORKFLOW_ID',\n  sharedAnalyticsWorkflowId: incoming.sharedAnalyticsWorkflowId || 'REPLACE_WITH_SHARED_ANALYTICS_WORKFLOW_ID',\n  sharedStrategyWorkflowId: incoming.sharedStrategyWorkflowId || 'REPLACE_WITH_SHARED_STRATEGY_WORKFLOW_ID'\n};\n\nconst globalConfig = {\n  workflowPackVersion: 'v23',\n  groqApiKey: incoming.groqApiKey || 'PASTE_GROQ_API_KEY',\n  groqModel: incoming.groqModel || 'llama-3.3-70b-versatile',\n  flikiApiKey: incoming.flikiApiKey || 'PASTE_FLIKI_API_KEY',\n  slackWebhook: incoming.slackWebhook || 'PASTE_SLACK_WEBHOOK',\n  googleSheetId: incoming.googleSheetId || 'PASTE_GOOGLE_SHEET_ID',\n  uploadPostApiKey: incoming.uploadPostApiKey || 'PASTE_UPLOAD_POST_API_KEY',\n  youtubeChannelId: incoming.youtubeChannelId || 'PASTE_YOUTUBE_CHANNEL_ID',\n  youtubeChannelUrl: incoming.youtubeChannelUrl || 'PASTE_YOUR_YOUTUBE_CHANNEL_URL',\n  mainSiteUrl: incoming.mainSiteUrl || 'PASTE_MAIN_SITE_URL',\n  mainOfferUrl: incoming.mainOfferUrl || 'PASTE_MAIN_OFFER_URL',\n  guideUrl: incoming.guideUrl || 'PASTE_GUIDE_URL',\n  templateUrl: incoming.templateUrl || 'PASTE_TEMPLATE_URL',\n  compareUrl: incoming.compareUrl || 'PASTE_COMPARE_URL',\n  offerBaseUrl: incoming.offerBaseUrl || 'PASTE_MAIN_SITE_URL',\n  sheetDashboard: 'Dashboard',\n  sheetErrors: 'Errors',\n  sheetSEO: 'SEO Data',\n  sheetOwnerNotes: 'Owner Notes',\n  sheetStrategyLog: 'Strategy Log',\n  sheetAnalytics: '7-Day Analytics',\n  sheetMilestones: 'Milestones',\n  sheetSocial: 'Social Posts',\n  sheetDrafts: 'Drafts',\n  sheetKpi: 'KPI Snapshot',\n  sheetOffers: 'Offers',\n  sheetAudience: 'Audience Snapshot',\n  sheetGapIdeas: 'Gap Ideas',\n  sheetRunLocks: 'Run Locks',\n  sheetDeadLetters: 'Dead Letters',\n  sheetCrossChannelRegistry: 'Cross-Channel Registry'\n};\n\nconst channels = {\n  localStackAi: {\n    channelKey: 'localStackAi',\n    channelName: 'Local Stack AI',\n    niche: 'Cheaper software stacks and AI automations for local service businesses \u2014 helping contractors, salons, cleaners, med spas, realtors, and home-service teams save money and save admin time.',\n    nicheKeywords: 'best cheap CRM for contractors, free scheduling app for salons, automate estimate follow-up, AI receptionist for local business, cheapest quoting software for cleaners, free reminder software for med spa, replace Calendly Mailchimp Zapier, local business software stack, missed call text back, review request automation, cheaper software for service business, AI tools for local business',\n    youtubeChannelUrl: incoming.localStackAiYoutubeChannelUrl || globalConfig.youtubeChannelUrl,\n    mainSiteUrl: incoming.localStackAiMainSiteUrl || globalConfig.mainSiteUrl,\n    mainOfferUrl: incoming.localStackAiMainOfferUrl || globalConfig.mainOfferUrl,\n    guideUrl: incoming.localStackAiGuideUrl || globalConfig.guideUrl,\n    offerCatalog: [\n      {\n        label: 'Local Stack Savings Guide',\n        type: 'comparison-page',\n        fit: ['stack-swap', 'software-savings', 'app-consolidation'],\n        url: incoming.localStackAiMainOfferUrl || globalConfig.mainOfferUrl,\n        priority: 10,\n        cta: 'See the cheapest winning stack'\n      },\n      {\n        label: 'Local Business AI Playbook',\n        type: 'guide',\n        fit: ['ai-automation', 'booking-system', 'crm-followup'],\n        url: incoming.localStackAiGuideUrl || globalConfig.guideUrl,\n        priority: 9,\n        cta: 'Get the playbook'\n      }\n    ]\n  },\n  leadSystems: {\n    channelKey: 'leadSystems',\n    channelName: 'Lead Systems',\n    niche: 'Lead follow-up, booking, review, quote, and no-show recovery systems for local service businesses.',\n    nicheKeywords: 'missed call text back, automate quote follow-up, booking reminders for local business, review request system, no-show recovery workflow, voicemail to booking, lead follow up automation, appointment reminder workflow, local business CRM followup, service business booking system',\n    youtubeChannelUrl: incoming.leadSystemsYoutubeChannelUrl || globalConfig.youtubeChannelUrl,\n    mainSiteUrl: incoming.leadSystemsMainSiteUrl || globalConfig.mainSiteUrl,\n    mainOfferUrl: incoming.leadSystemsMainOfferUrl || globalConfig.mainOfferUrl,\n    guideUrl: incoming.leadSystemsGuideUrl || globalConfig.guideUrl,\n    offerCatalog: [\n      {\n        label: 'Lead Follow-Up Playbook',\n        type: 'guide',\n        fit: ['lead-followup', 'missed-calls', 'booking-recovery'],\n        url: incoming.leadSystemsMainOfferUrl || globalConfig.mainOfferUrl,\n        priority: 10,\n        cta: 'Get the booking playbook'\n      },\n      {\n        label: 'Review + Reminder System Guide',\n        type: 'guide',\n        fit: ['reviews', 'reminders', 'no-show-recovery'],\n        url: incoming.leadSystemsGuideUrl || globalConfig.guideUrl,\n        priority: 9,\n        cta: 'Get the reminder system'\n      }\n    ]\n  }\n};\n\nconst requiredGlobalFields = ['groqApiKey','flikiApiKey','googleSheetId','uploadPostApiKey','slackWebhook','youtubeChannelId','youtubeChannelUrl','mainSiteUrl','mainOfferUrl'];\nconst missingGlobalFields = requiredGlobalFields.filter(k => !globalConfig[k] || String(globalConfig[k]).includes('PASTE_'));\nconst workflowBindingChecks = Object.entries(workflowBindings).map(([key, value]) => ({ key, ready: !!value && !String(value).includes('REPLACE_WITH_') }));\nconst bindingsReady = workflowBindingChecks.every(x => x.ready);\n\nreturn [{\n  json: {\n    ...incoming,\n    workflowPackVersion: 'v23',\n    centralConfigReadiness: {\n      missingGlobalFields,\n      missingGlobalFieldCount: missingGlobalFields.length,\n      workflowBindingChecks,\n      bindingsReady\n    },\n    centralConfig: {\n      workflowBindings,\n      globalConfig,\n      channels\n    }\n  }\n}];\n"
+      },
+      "id": "f5c2e9ec-f1f3-4761-8bf1-b3180122ccc9",
+      "name": "Attach Central Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -420,
+        280
+      ]
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Attach Central Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "b12c42fa-37d1-412e-9892-d09ef973b953"
+}

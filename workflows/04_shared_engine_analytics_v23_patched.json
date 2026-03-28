@@ -1,0 +1,921 @@
+{
+  "name": "Shared Engine Analytics v23 Debugged",
+  "nodes": [
+    {
+      "id": "d84e8349-e9f9-4ddf-bf19-acb368d2b5df",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1800,
+        600
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "f52c25da-ae01-43d9-a57d-42d04dfbdd8b",
+      "name": "Channel Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1560,
+        600
+      ],
+      "parameters": {
+        "jsCode": "return $input.all();"
+      }
+    },
+    {
+      "id": "0198d1df-0f42-43a6-bb8f-8be62703c114",
+      "name": "Validate Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1120,
+        480
+      ],
+      "parameters": {
+        "jsCode": "const cfg = items[0].json || {};\nconst missing = [];\nconst REQUIRED = ['niche','groqApiKey','flikiApiKey','slackWebhook','googleSheetId','uploadPostApiKey','youtubeChannelId'];\nfor (const f of REQUIRED) {\n  if (!cfg[f] || String(cfg[f]).includes('PASTE_')) missing.push(f);\n}\nreturn [{\n  json: {\n    ...cfg,\n    configOk: missing.length === 0,\n    configError: missing.length ? 'MISSING: ' + missing.join(', ') : '',\n    runId: cfg.runId || ('run_' + Date.now()),\n    startedAt: cfg.startedAt || new Date().toISOString(),\n    workflowPackVersion: cfg.workflowPackVersion || 'v23'\n  }\n}];\n"
+      }
+    },
+    {
+      "id": "e64f0a05-057a-4cd5-9d1a-5b36a9ae39ae",
+      "name": "Analytics Run Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [
+        -1080,
+        600
+      ],
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.requestedRunType || $json.runType }}",
+        "rules": {
+          "rules": [
+            {
+              "conditions": [
+                {
+                  "value1": "={{ $json.requestedRunType || $json.runType }}",
+                  "value2": "ANALYTICS_24H",
+                  "operation": "equals"
+                }
+              ]
+            },
+            {
+              "conditions": [
+                {
+                  "value1": "={{ $json.requestedRunType || $json.runType }}",
+                  "value2": "ANALYTICS_72H",
+                  "operation": "equals"
+                }
+              ]
+            },
+            {
+              "conditions": [
+                {
+                  "value1": "={{ $json.requestedRunType || $json.runType }}",
+                  "value2": "ANALYTICS_7D",
+                  "operation": "equals"
+                }
+              ]
+            }
+          ]
+        },
+        "fallbackOutput": "extra"
+      }
+    },
+    {
+      "id": "5592dd61-2cec-4962-a6d8-13340913bd19",
+      "name": "24-Hour Analytics Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -840,
+        460
+      ],
+      "parameters": {
+        "jsCode": "return $input.all();"
+      }
+    },
+    {
+      "id": "c21bec9b-a555-4e58-a225-a2d96dc9937d",
+      "name": "72-Hour Analytics Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -840,
+        640
+      ],
+      "parameters": {
+        "jsCode": "return $input.all();"
+      }
+    },
+    {
+      "id": "51c08877-0e72-43c5-ae72-731b40fa01a1",
+      "name": "7-Day Analytics Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -840,
+        820
+      ],
+      "parameters": {
+        "jsCode": "return $input.all();"
+      }
+    },
+    {
+      "id": "dc74df04-2504-431d-be24-a932af50e8a6",
+      "name": "7-Day Validate Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1300,
+        840
+      ],
+      "parameters": {
+        "jsCode": "const cfg = items[0].json || {};\nconst missing = [];\nconst REQUIRED = ['niche','groqApiKey','flikiApiKey','slackWebhook','googleSheetId','uploadPostApiKey','youtubeChannelId'];\nfor (const f of REQUIRED) {\n  if (!cfg[f] || String(cfg[f]).includes('PASTE_')) missing.push(f);\n}\nreturn [{\n  json: {\n    ...cfg,\n    configOk: missing.length === 0,\n    configError: missing.length ? 'MISSING: ' + missing.join(', ') : '',\n    runId: cfg.runId || ('run_' + Date.now()),\n    startedAt: cfg.startedAt || new Date().toISOString(),\n    workflowPackVersion: cfg.workflowPackVersion || 'v23'\n  }\n}];\n"
+      }
+    },
+    {
+      "id": "9d706456-427c-46b8-a77b-2fd14259469f",
+      "name": "Fetch Videos Needing Analytics",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -1360,
+        900
+      ],
+      "parameters": {
+        "operation": "read",
+        "documentId": "={{ $('7-Day Validate Config').first().json.googleSheetId || '' }}",
+        "sheetName": "={{ $('7-Day Validate Config').first().json.sheetDashboard || 'Dashboard' }}",
+        "options": {
+          "returnAll": true
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "7bdbe8b7-f77c-440f-8361-63388aa97667",
+      "name": "Filter 7-Day Old Videos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1120,
+        900
+      ],
+      "parameters": {
+        "jsCode": "const now = Date.now();\nconst rows = items.map(i => i.json).filter(r => {\n  const vid = r.youtubeVideoId || r.YoutubeVideoId || '';\n  const status = String(r.status || r.Status || '').toUpperCase();\n  const date = new Date(r.date || r.Date || 0).getTime();\n  if (!vid || !date || status !== 'PUBLISHED') return false;\n  const daysAgo = (now - date) / 86400000;\n  return daysAgo >= 6.5 && daysAgo <= 8.2;\n}).map(r => ({\n  ...r,\n  analyticsWindow: \"7D\"\n}));\n\nif (!rows.length) return [{ json: { noVideos: true, analyticsWindow: \"7D\", message: 'No videos need 7D analytics update' } }];\nreturn rows.map(r => ({ json: r }));\n"
+      }
+    },
+    {
+      "id": "aa5809c7-8468-49e2-8664-e8711191f9af",
+      "name": "Pull YouTube Analytics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -880,
+        900
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://youtubeanalytics.googleapis.com/v2/reports",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "ids",
+              "value": "channel==MINE"
+            },
+            {
+              "name": "startDate",
+              "value": "={{ new Date(Date.now()-12*86400000).toISOString().slice(0,10) }}"
+            },
+            {
+              "name": "endDate",
+              "value": "={{ new Date().toISOString().slice(0,10) }}"
+            },
+            {
+              "name": "metrics",
+              "value": "views,estimatedMinutesWatched,averageViewPercentage,averageViewDuration,likes,subscribersGained,videoThumbnailImpressions,videoThumbnailImpressionsClickRate"
+            },
+            {
+              "name": "dimensions",
+              "value": "video"
+            },
+            {
+              "name": "filters",
+              "value": "=video=={{ items.filter(i=>i.json.youtubeVideoId).map(i=>i.json.youtubeVideoId).join(',') }}"
+            },
+            {
+              "name": "maxResults",
+              "value": "20"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "c96d08b8-c3e7-4bee-88c0-f06fa238bf7e",
+      "name": "Compute Real Scores",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -640,
+        900
+      ],
+      "parameters": {
+        "jsCode": "const analytics = items[0].json || {};\nconst rows = analytics.rows || [];\nconst headers = analytics.columnHeaders || [];\nconst col = {};\nheaders.forEach((h, i) => { col[h.name] = i; });\nconst cfg = (() => {\n  try { return $('7-Day-Hour Validate Config').first().json || {}; }\n  catch (e) {\n    try { return $('7-Day Validate Config').first().json || {}; }\n    catch(err) { return {}; }\n  }\n})();\n\nconst videos = (() => {\n  try {\n    return $('Filter 7-Day Old Videos').all().map(i => i.json).filter(v => v.youtubeVideoId);\n  } catch (e) {\n    return [];\n  }\n})();\n\nfunction normalizeFamily(title = '', topic = '') {\n  return String(topic || title || '')\n    .toLowerCase()\n    .replace(/['\u2019]/g, '')\n    .replace(/\\b(best|free|cheap|cheaper|how|to|for|vs|and|the|a|an|is|still|worth|paying|manual|smart|automation|automate|workflow|tool|tools|app|apps|local|business|businesses|service|services|small|ai|software|stack)\\b/g, ' ')\n    .replace(/[^a-z0-9 ]+/g, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim()\n    .split(' ')\n    .filter(Boolean)\n    .slice(0, 4)\n    .join('-') || 'general';\n}\n\nfunction buildSequelIdeas(title = '', topic = '') {\n  const base = title || topic || 'this topic';\n  return [\n    `${base} for beginners`,\n    `${topic || base} mistakes to avoid`,\n    `${topic || base} cheaper/free version`\n  ].slice(0, 3);\n}\n\nconst results = videos.map(v => {\n  const vid = v.youtubeVideoId || '';\n  const row = rows.find(r => r[col['video']] === vid) || [];\n  const views = Number(row[col['views']] || 0);\n  const avgPct = Number(row[col['averageViewPercentage']] || 0);\n  const avgDur = Number(row[col['averageViewDuration']] || 0);\n  const likes = Number(row[col['likes']] || 0);\n  const subs = Number(row[col['subscribersGained']] || 0);\n  const watchMins = Number(row[col['estimatedMinutesWatched']] || 0);\n  const impressions = Number(row[col['videoThumbnailImpressions']] || 0);\n  const ctr = Number(row[col['videoThumbnailImpressionsClickRate']] || 0);\n\n  const packagingScore = Math.min(10, Number(((ctr * 1.35) + (impressions >= 1500 ? 2.4 : impressions >= 500 ? 1.2 : 0) + (views >= 700 ? 0.9 : 0)).toFixed(1)));\n  const retentionScore = Math.min(10, Number((((avgPct / 10) * 1.2) + (avgDur >= 240 ? 1.7 : avgDur >= 120 ? 0.9 : 0)).toFixed(1)));\n\n  let score = 0;\n  if (views >= 12000) score += 3.1; else if (views >= 4000) score += 2.2; else if (views >= 700) score += 1.2;\n  if (avgPct >= 48) score += 2.1; else if (avgPct >= 34) score += 1.3; else if (avgPct >= 25) score += 0.4;\n  if (ctr >= 6.5) score += 2.4; else if (ctr >= 4.8) score += 1.5; else if (ctr >= 3.0) score += 0.6;\n  if (subs > 0) score += 0.5;\n  if (likes > 50) score += 0.6; else if (likes > 10) score += 0.25;\n  const realScore = Math.min(10, Math.round(score * 10) / 10);\n\n  let growthAction = 'HOLD';\n  let growthReason = 'Gather more data';\n  let secondaryAction = 'NONE';\n  if (impressions >= 350 && ctr < 2.9) {\n    growthAction = 'REPACKAGE_TITLE_THUMB';\n    growthReason = 'Topic is getting seen but packaging is underperforming';\n    secondaryAction = 'TRY_NEW_THUMBNAIL_VARIANT';\n  } else if (ctr >= 4.4 && avgPct < 30) {\n    growthAction = 'FIX_HOOK_RETENTION';\n    growthReason = 'Clicks are happening but the opening does not hold viewers';\n    secondaryAction = 'TIGHTEN_OPENING_30_SECONDS';\n  } else if (ctr >= 4.8 && avgPct >= 36 && views >= 500) {\n    growthAction = 'MAKE_SEQUEL';\n    growthReason = 'Broad packaging and useful retention are both working';\n    secondaryAction = 'DOUBLE_DOWN_ON_FORMAT';\n  } else if (views < 150 && avgPct < 23) {\n    growthAction = 'DO_NOT_REPEAT';\n    growthReason = 'The topic did not earn either reach or hold';\n    secondaryAction = 'SUPPRESS_LANE_2_WEEKS';\n  }\n\n  const offerUrl = String(v.oneLinkOfferUrl || '');\n  const offerReady = !!offerUrl && !offerUrl.includes('PASTE_');\n  const offerAction = (!offerReady && Number(v.firstDollarScore || 0) >= 7)\n    ? 'BUILD_PRIMARY_OFFER_URL'\n    : (views >= 300 && Number(v.firstDollarScore || 0) >= 7 && subs === 0)\n      ? 'TIGHTEN_ONE_LINK_CTA'\n      : 'HOLD_OFFER';\n\n  const franchiseFamily = normalizeFamily(v.title || v.Title || '', v.topic || v.Topic || '');\n  const franchiseStrength = Math.min(10, Number(((realScore * 0.5) + (packagingScore * 0.35) + (retentionScore * 0.15)).toFixed(1)));\n  const franchiseReady = growthAction === 'MAKE_SEQUEL' || franchiseStrength >= 7.8;\n\n  return {\n    analyticsWindow: '7D',\n    youtubeVideoId: vid,\n    topic: v.topic || v.Topic || '',\n    title: v.title || v.Title || '',\n    predictedScore: Number(v.score || v.Score || 0),\n    realScore,\n    realViews: views,\n    realAvgRetention: avgPct,\n    realAvgViewDuration: avgDur,\n    realLikes: likes,\n    realSubs: subs,\n    realWatchMins: watchMins,\n    thumbImpressions: impressions,\n    thumbCtr: ctr,\n    packagingScore,\n    retentionScore,\n    scoreDelta: realScore - Number(v.score || v.Score || 0),\n    date: v.date || v.Date || '',\n    growthAction,\n    growthReason,\n    secondaryAction,\n    offerAction,\n    sequelIdeas: buildSequelIdeas(v.title || v.Title || '', v.topic || v.Topic || ''),\n    winnerFollowupNeeded: growthAction === 'MAKE_SEQUEL',\n    repackageNeeded: growthAction === 'REPACKAGE_TITLE_THUMB',\n    suppressLane: growthAction === 'DO_NOT_REPEAT',\n    offerUrl,\n    offerReady,\n    franchiseFamily,\n    franchiseStrength,\n    franchiseReady,\n    openingQualityScore: Number(v.openingQualityScore || 0),\n    finalBusinessScore: Number(v.finalBusinessScore || 0)\n  };\n});\n\nreturn results.map(r => ({ json: r }));"
+      }
+    },
+    {
+      "id": "7ca7fc84-48a2-4a36-a563-c633af489e35",
+      "name": "Save Real Analytics",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -400,
+        900
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": "={{ $('7-Day Validate Config').first().json.googleSheetId || '' }}",
+        "sheetName": "={{ $('7-Day Validate Config').first().json.sheetAnalytics || '7-Day Analytics' }}",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ new Date().toISOString().slice(0,10) }}",
+            "videoDate": "={{ $json.date }}",
+            "topic": "={{ $json.topic }}",
+            "title": "={{ $json.title }}",
+            "youtubeVideoId": "={{ $json.youtubeVideoId }}",
+            "predictedScore": "={{ $json.predictedScore }}",
+            "realScore": "={{ $json.realScore }}",
+            "scoreDelta": "={{ $json.scoreDelta }}",
+            "views": "={{ $json.realViews }}",
+            "avgRetention": "={{ $json.realAvgRetention }}",
+            "likes": "={{ $json.realLikes }}",
+            "subsGained": "={{ $json.realSubs }}",
+            "watchMinutes": "={{ $json.realWatchMins }}",
+            "window": "={{ $json.analyticsWindow }}",
+            "thumbCtr": "={{ $json.thumbCtr }}",
+            "thumbImpressions": "={{ $json.thumbImpressions }}",
+            "growthAction": "={{ $json.growthAction }}",
+            "secondaryAction": "={{ $json.secondaryAction }}",
+            "offerAction": "={{ $json.offerAction }}",
+            "sequelIdeas": "={{ Array.isArray($json.sequelIdeas) ? $json.sequelIdeas.join(' | ') : '' }}"
+          }
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "032fc2b2-c10b-4f50-9dc5-b5ef8f449483",
+      "name": "24-Hour Validate Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1300,
+        640
+      ],
+      "parameters": {
+        "jsCode": "const cfg = items[0].json || {};\nconst missing = [];\nconst REQUIRED = ['niche','groqApiKey','flikiApiKey','slackWebhook','googleSheetId','uploadPostApiKey','youtubeChannelId'];\nfor (const f of REQUIRED) {\n  if (!cfg[f] || String(cfg[f]).includes('PASTE_')) missing.push(f);\n}\nreturn [{\n  json: {\n    ...cfg,\n    configOk: missing.length === 0,\n    configError: missing.length ? 'MISSING: ' + missing.join(', ') : '',\n    runId: cfg.runId || ('run_' + Date.now()),\n    startedAt: cfg.startedAt || new Date().toISOString(),\n    workflowPackVersion: cfg.workflowPackVersion || 'v23'\n  }\n}];\n"
+      }
+    },
+    {
+      "id": "55e5e65c-58fd-4d8d-ad73-8914862d2022",
+      "name": "Fetch Videos Needing 24h Analytics",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -1120,
+        640
+      ],
+      "parameters": {
+        "operation": "read",
+        "documentId": "={{ $('24-Hour Validate Config').first().json.googleSheetId || '' }}",
+        "sheetName": "={{ $('24-Hour Validate Config').first().json.sheetDashboard || 'Dashboard' }}",
+        "options": {
+          "returnAll": true
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "fee3500f-8230-4fdd-bd89-9006152df396",
+      "name": "Filter 24-Hour Videos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -880,
+        640
+      ],
+      "parameters": {
+        "jsCode": "const now = Date.now();\nconst rows = items.map(i => i.json).filter(r => {\n  const vid = r.youtubeVideoId || r.YoutubeVideoId || '';\n  const status = String(r.status || r.Status || '').toUpperCase();\n  const date = new Date(r.date || r.Date || 0).getTime();\n  if (!vid || !date || status !== 'PUBLISHED') return false;\n  const daysAgo = (now - date) / 86400000;\n  return daysAgo >= 0.75 && daysAgo <= 1.75;\n}).map(r => ({\n  ...r,\n  analyticsWindow: \"24H\"\n}));\n\nif (!rows.length) return [{ json: { noVideos: true, analyticsWindow: \"24H\", message: 'No videos need 24H analytics update' } }];\nreturn rows.map(r => ({ json: r }));\n"
+      }
+    },
+    {
+      "id": "705ab33e-0487-4db9-980b-8bdf972108b2",
+      "name": "Pull 24-Hour Analytics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -640,
+        640
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://youtubeanalytics.googleapis.com/v2/reports",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "ids",
+              "value": "channel==MINE"
+            },
+            {
+              "name": "startDate",
+              "value": "={{ new Date(Date.now()-6*86400000).toISOString().slice(0,10) }}"
+            },
+            {
+              "name": "endDate",
+              "value": "={{ new Date().toISOString().slice(0,10) }}"
+            },
+            {
+              "name": "metrics",
+              "value": "views,estimatedMinutesWatched,averageViewPercentage,averageViewDuration,likes,subscribersGained,videoThumbnailImpressions,videoThumbnailImpressionsClickRate"
+            },
+            {
+              "name": "dimensions",
+              "value": "video"
+            },
+            {
+              "name": "filters",
+              "value": "=video=={{ items.filter(i=>i.json.youtubeVideoId).map(i=>i.json.youtubeVideoId).join(',') }}"
+            },
+            {
+              "name": "maxResults",
+              "value": "20"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "4ee91525-8c47-46db-b4ba-58c5360530be",
+      "name": "Compute 24-Hour Scores",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        640
+      ],
+      "parameters": {
+        "jsCode": "const analytics = items[0].json || {};\nconst rows = analytics.rows || [];\nconst headers = analytics.columnHeaders || [];\nconst col = {};\nheaders.forEach((h, i) => { col[h.name] = i; });\nconst cfg = (() => {\n  try { return $('24-Hour Validate Config').first().json || {}; }\n  catch (e) {\n    try { return $('7-Day Validate Config').first().json || {}; }\n    catch(err) { return {}; }\n  }\n})();\n\nconst videos = (() => {\n  try {\n    return $('Filter 24-Hour Videos').all().map(i => i.json).filter(v => v.youtubeVideoId);\n  } catch (e) {\n    return [];\n  }\n})();\n\nfunction normalizeFamily(title = '', topic = '') {\n  return String(topic || title || '')\n    .toLowerCase()\n    .replace(/['\u2019]/g, '')\n    .replace(/\\b(best|free|cheap|cheaper|how|to|for|vs|and|the|a|an|is|still|worth|paying|manual|smart|automation|automate|workflow|tool|tools|app|apps|local|business|businesses|service|services|small|ai|software|stack)\\b/g, ' ')\n    .replace(/[^a-z0-9 ]+/g, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim()\n    .split(' ')\n    .filter(Boolean)\n    .slice(0, 4)\n    .join('-') || 'general';\n}\n\nfunction buildSequelIdeas(title = '', topic = '') {\n  const base = title || topic || 'this topic';\n  return [\n    `${base} for beginners`,\n    `${topic || base} mistakes to avoid`,\n    `${topic || base} cheaper/free version`\n  ].slice(0, 3);\n}\n\nconst results = videos.map(v => {\n  const vid = v.youtubeVideoId || '';\n  const row = rows.find(r => r[col['video']] === vid) || [];\n  const views = Number(row[col['views']] || 0);\n  const avgPct = Number(row[col['averageViewPercentage']] || 0);\n  const avgDur = Number(row[col['averageViewDuration']] || 0);\n  const likes = Number(row[col['likes']] || 0);\n  const subs = Number(row[col['subscribersGained']] || 0);\n  const watchMins = Number(row[col['estimatedMinutesWatched']] || 0);\n  const impressions = Number(row[col['videoThumbnailImpressions']] || 0);\n  const ctr = Number(row[col['videoThumbnailImpressionsClickRate']] || 0);\n\n  const packagingScore = Math.min(10, Number(((ctr * 1.35) + (impressions >= 1500 ? 2.4 : impressions >= 500 ? 1.2 : 0) + (views >= 700 ? 0.9 : 0)).toFixed(1)));\n  const retentionScore = Math.min(10, Number((((avgPct / 10) * 1.2) + (avgDur >= 240 ? 1.7 : avgDur >= 120 ? 0.9 : 0)).toFixed(1)));\n\n  let score = 0;\n  if (views >= 12000) score += 3.1; else if (views >= 4000) score += 2.2; else if (views >= 700) score += 1.2;\n  if (avgPct >= 48) score += 2.1; else if (avgPct >= 34) score += 1.3; else if (avgPct >= 25) score += 0.4;\n  if (ctr >= 6.5) score += 2.4; else if (ctr >= 4.8) score += 1.5; else if (ctr >= 3.0) score += 0.6;\n  if (subs > 0) score += 0.5;\n  if (likes > 50) score += 0.6; else if (likes > 10) score += 0.25;\n  const realScore = Math.min(10, Math.round(score * 10) / 10);\n\n  let growthAction = 'HOLD';\n  let growthReason = 'Gather more data';\n  let secondaryAction = 'NONE';\n  if (impressions >= 350 && ctr < 2.9) {\n    growthAction = 'REPACKAGE_TITLE_THUMB';\n    growthReason = 'Topic is getting seen but packaging is underperforming';\n    secondaryAction = 'TRY_NEW_THUMBNAIL_VARIANT';\n  } else if (ctr >= 4.4 && avgPct < 30) {\n    growthAction = 'FIX_HOOK_RETENTION';\n    growthReason = 'Clicks are happening but the opening does not hold viewers';\n    secondaryAction = 'TIGHTEN_OPENING_30_SECONDS';\n  } else if (ctr >= 4.8 && avgPct >= 36 && views >= 500) {\n    growthAction = 'MAKE_SEQUEL';\n    growthReason = 'Broad packaging and useful retention are both working';\n    secondaryAction = 'DOUBLE_DOWN_ON_FORMAT';\n  } else if (views < 150 && avgPct < 23) {\n    growthAction = 'DO_NOT_REPEAT';\n    growthReason = 'The topic did not earn either reach or hold';\n    secondaryAction = 'SUPPRESS_LANE_2_WEEKS';\n  }\n\n  const offerUrl = String(v.oneLinkOfferUrl || '');\n  const offerReady = !!offerUrl && !offerUrl.includes('PASTE_');\n  const offerAction = (!offerReady && Number(v.firstDollarScore || 0) >= 7)\n    ? 'BUILD_PRIMARY_OFFER_URL'\n    : (views >= 300 && Number(v.firstDollarScore || 0) >= 7 && subs === 0)\n      ? 'TIGHTEN_ONE_LINK_CTA'\n      : 'HOLD_OFFER';\n\n  const franchiseFamily = normalizeFamily(v.title || v.Title || '', v.topic || v.Topic || '');\n  const franchiseStrength = Math.min(10, Number(((realScore * 0.5) + (packagingScore * 0.35) + (retentionScore * 0.15)).toFixed(1)));\n  const franchiseReady = growthAction === 'MAKE_SEQUEL' || franchiseStrength >= 7.8;\n\n  return {\n    analyticsWindow: '24H',\n    youtubeVideoId: vid,\n    topic: v.topic || v.Topic || '',\n    title: v.title || v.Title || '',\n    predictedScore: Number(v.score || v.Score || 0),\n    realScore,\n    realViews: views,\n    realAvgRetention: avgPct,\n    realAvgViewDuration: avgDur,\n    realLikes: likes,\n    realSubs: subs,\n    realWatchMins: watchMins,\n    thumbImpressions: impressions,\n    thumbCtr: ctr,\n    packagingScore,\n    retentionScore,\n    scoreDelta: realScore - Number(v.score || v.Score || 0),\n    date: v.date || v.Date || '',\n    growthAction,\n    growthReason,\n    secondaryAction,\n    offerAction,\n    sequelIdeas: buildSequelIdeas(v.title || v.Title || '', v.topic || v.Topic || ''),\n    winnerFollowupNeeded: growthAction === 'MAKE_SEQUEL',\n    repackageNeeded: growthAction === 'REPACKAGE_TITLE_THUMB',\n    suppressLane: growthAction === 'DO_NOT_REPEAT',\n    offerUrl,\n    offerReady,\n    franchiseFamily,\n    franchiseStrength,\n    franchiseReady,\n    openingQualityScore: Number(v.openingQualityScore || 0),\n    finalBusinessScore: Number(v.finalBusinessScore || 0)\n  };\n});\n\nreturn results.map(r => ({ json: r }));"
+      }
+    },
+    {
+      "id": "64ee8ef7-d777-4f7a-992c-457da8dde7b0",
+      "name": "Save 24-Hour Analytics",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -160,
+        640
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": "={{ $('24-Hour Validate Config').first().json.googleSheetId || '' }}",
+        "sheetName": "={{ $('24-Hour Validate Config').first().json.sheetAnalytics || '7-Day Analytics' }}",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ new Date().toISOString().slice(0,10) }}",
+            "videoDate": "={{ $json.date }}",
+            "topic": "={{ $json.topic }}",
+            "title": "={{ $json.title }}",
+            "youtubeVideoId": "={{ $json.youtubeVideoId }}",
+            "predictedScore": "={{ $json.predictedScore }}",
+            "realScore": "={{ $json.realScore }}",
+            "scoreDelta": "={{ $json.scoreDelta }}",
+            "views": "={{ $json.realViews }}",
+            "avgRetention": "={{ $json.realAvgRetention }}",
+            "likes": "={{ $json.realLikes }}",
+            "subsGained": "={{ $json.realSubs }}",
+            "watchMinutes": "={{ $json.realWatchMins }}",
+            "window": "={{ $json.analyticsWindow }}",
+            "thumbCtr": "={{ $json.thumbCtr }}",
+            "thumbImpressions": "={{ $json.thumbImpressions }}",
+            "growthAction": "={{ $json.growthAction }}",
+            "secondaryAction": "={{ $json.secondaryAction }}",
+            "offerAction": "={{ $json.offerAction }}",
+            "sequelIdeas": "={{ Array.isArray($json.sequelIdeas) ? $json.sequelIdeas.join(' | ') : '' }}"
+          }
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "cc714752-bff4-4b58-9141-c223630e9b57",
+      "name": "72-Hour Validate Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1300,
+        740
+      ],
+      "parameters": {
+        "jsCode": "const cfg = items[0].json || {};\nconst missing = [];\nconst REQUIRED = ['niche','groqApiKey','flikiApiKey','slackWebhook','googleSheetId','uploadPostApiKey','youtubeChannelId'];\nfor (const f of REQUIRED) {\n  if (!cfg[f] || String(cfg[f]).includes('PASTE_')) missing.push(f);\n}\nreturn [{\n  json: {\n    ...cfg,\n    configOk: missing.length === 0,\n    configError: missing.length ? 'MISSING: ' + missing.join(', ') : '',\n    runId: cfg.runId || ('run_' + Date.now()),\n    startedAt: cfg.startedAt || new Date().toISOString(),\n    workflowPackVersion: cfg.workflowPackVersion || 'v23'\n  }\n}];\n"
+      }
+    },
+    {
+      "id": "94854f90-73ce-4c93-8830-60639b9434dc",
+      "name": "Fetch Videos Needing 72h Analytics",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -1120,
+        740
+      ],
+      "parameters": {
+        "operation": "read",
+        "documentId": "={{ $('72-Hour Validate Config').first().json.googleSheetId || '' }}",
+        "sheetName": "={{ $('72-Hour Validate Config').first().json.sheetDashboard || 'Dashboard' }}",
+        "options": {
+          "returnAll": true
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "50d5a5e5-6a90-4c0c-910e-9fd2e0cc4c66",
+      "name": "Filter 72-Hour Videos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -880,
+        740
+      ],
+      "parameters": {
+        "jsCode": "const now = Date.now();\nconst rows = items.map(i => i.json).filter(r => {\n  const vid = r.youtubeVideoId || r.YoutubeVideoId || '';\n  const status = String(r.status || r.Status || '').toUpperCase();\n  const date = new Date(r.date || r.Date || 0).getTime();\n  if (!vid || !date || status !== 'PUBLISHED') return false;\n  const daysAgo = (now - date) / 86400000;\n  return daysAgo >= 2.5 && daysAgo <= 3.6;\n}).map(r => ({\n  ...r,\n  analyticsWindow: \"72H\"\n}));\n\nif (!rows.length) return [{ json: { noVideos: true, analyticsWindow: \"72H\", message: 'No videos need 72H analytics update' } }];\nreturn rows.map(r => ({ json: r }));\n"
+      }
+    },
+    {
+      "id": "3c2739a3-b7c3-43d6-855a-858cf911d3f1",
+      "name": "Pull 72-Hour Analytics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -640,
+        740
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://youtubeanalytics.googleapis.com/v2/reports",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "ids",
+              "value": "channel==MINE"
+            },
+            {
+              "name": "startDate",
+              "value": "={{ new Date(Date.now()-6*86400000).toISOString().slice(0,10) }}"
+            },
+            {
+              "name": "endDate",
+              "value": "={{ new Date().toISOString().slice(0,10) }}"
+            },
+            {
+              "name": "metrics",
+              "value": "views,estimatedMinutesWatched,averageViewPercentage,averageViewDuration,likes,subscribersGained,videoThumbnailImpressions,videoThumbnailImpressionsClickRate"
+            },
+            {
+              "name": "dimensions",
+              "value": "video"
+            },
+            {
+              "name": "filters",
+              "value": "=video=={{ items.filter(i=>i.json.youtubeVideoId).map(i=>i.json.youtubeVideoId).join(',') }}"
+            },
+            {
+              "name": "maxResults",
+              "value": "20"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "98172aff-7976-4c3c-a0ae-3e4b048e10dd",
+      "name": "Compute 72-Hour Scores",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        740
+      ],
+      "parameters": {
+        "jsCode": "const analytics = items[0].json || {};\nconst rows = analytics.rows || [];\nconst headers = analytics.columnHeaders || [];\nconst col = {};\nheaders.forEach((h, i) => { col[h.name] = i; });\nconst cfg = (() => {\n  try { return $('72-Hour Validate Config').first().json || {}; }\n  catch (e) {\n    try { return $('7-Day Validate Config').first().json || {}; }\n    catch(err) { return {}; }\n  }\n})();\n\nconst videos = (() => {\n  try {\n    return $('Filter 72-Hour Videos').all().map(i => i.json).filter(v => v.youtubeVideoId);\n  } catch (e) {\n    return [];\n  }\n})();\n\nfunction normalizeFamily(title = '', topic = '') {\n  return String(topic || title || '')\n    .toLowerCase()\n    .replace(/['\u2019]/g, '')\n    .replace(/\\b(best|free|cheap|cheaper|how|to|for|vs|and|the|a|an|is|still|worth|paying|manual|smart|automation|automate|workflow|tool|tools|app|apps|local|business|businesses|service|services|small|ai|software|stack)\\b/g, ' ')\n    .replace(/[^a-z0-9 ]+/g, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim()\n    .split(' ')\n    .filter(Boolean)\n    .slice(0, 4)\n    .join('-') || 'general';\n}\n\nfunction buildSequelIdeas(title = '', topic = '') {\n  const base = title || topic || 'this topic';\n  return [\n    `${base} for beginners`,\n    `${topic || base} mistakes to avoid`,\n    `${topic || base} cheaper/free version`\n  ].slice(0, 3);\n}\n\nconst results = videos.map(v => {\n  const vid = v.youtubeVideoId || '';\n  const row = rows.find(r => r[col['video']] === vid) || [];\n  const views = Number(row[col['views']] || 0);\n  const avgPct = Number(row[col['averageViewPercentage']] || 0);\n  const avgDur = Number(row[col['averageViewDuration']] || 0);\n  const likes = Number(row[col['likes']] || 0);\n  const subs = Number(row[col['subscribersGained']] || 0);\n  const watchMins = Number(row[col['estimatedMinutesWatched']] || 0);\n  const impressions = Number(row[col['videoThumbnailImpressions']] || 0);\n  const ctr = Number(row[col['videoThumbnailImpressionsClickRate']] || 0);\n\n  const packagingScore = Math.min(10, Number(((ctr * 1.35) + (impressions >= 1500 ? 2.4 : impressions >= 500 ? 1.2 : 0) + (views >= 700 ? 0.9 : 0)).toFixed(1)));\n  const retentionScore = Math.min(10, Number((((avgPct / 10) * 1.2) + (avgDur >= 240 ? 1.7 : avgDur >= 120 ? 0.9 : 0)).toFixed(1)));\n\n  let score = 0;\n  if (views >= 12000) score += 3.1; else if (views >= 4000) score += 2.2; else if (views >= 700) score += 1.2;\n  if (avgPct >= 48) score += 2.1; else if (avgPct >= 34) score += 1.3; else if (avgPct >= 25) score += 0.4;\n  if (ctr >= 6.5) score += 2.4; else if (ctr >= 4.8) score += 1.5; else if (ctr >= 3.0) score += 0.6;\n  if (subs > 0) score += 0.5;\n  if (likes > 50) score += 0.6; else if (likes > 10) score += 0.25;\n  const realScore = Math.min(10, Math.round(score * 10) / 10);\n\n  let growthAction = 'HOLD';\n  let growthReason = 'Gather more data';\n  let secondaryAction = 'NONE';\n  if (impressions >= 350 && ctr < 2.9) {\n    growthAction = 'REPACKAGE_TITLE_THUMB';\n    growthReason = 'Topic is getting seen but packaging is underperforming';\n    secondaryAction = 'TRY_NEW_THUMBNAIL_VARIANT';\n  } else if (ctr >= 4.4 && avgPct < 30) {\n    growthAction = 'FIX_HOOK_RETENTION';\n    growthReason = 'Clicks are happening but the opening does not hold viewers';\n    secondaryAction = 'TIGHTEN_OPENING_30_SECONDS';\n  } else if (ctr >= 4.8 && avgPct >= 36 && views >= 500) {\n    growthAction = 'MAKE_SEQUEL';\n    growthReason = 'Broad packaging and useful retention are both working';\n    secondaryAction = 'DOUBLE_DOWN_ON_FORMAT';\n  } else if (views < 150 && avgPct < 23) {\n    growthAction = 'DO_NOT_REPEAT';\n    growthReason = 'The topic did not earn either reach or hold';\n    secondaryAction = 'SUPPRESS_LANE_2_WEEKS';\n  }\n\n  const offerUrl = String(v.oneLinkOfferUrl || '');\n  const offerReady = !!offerUrl && !offerUrl.includes('PASTE_');\n  const offerAction = (!offerReady && Number(v.firstDollarScore || 0) >= 7)\n    ? 'BUILD_PRIMARY_OFFER_URL'\n    : (views >= 300 && Number(v.firstDollarScore || 0) >= 7 && subs === 0)\n      ? 'TIGHTEN_ONE_LINK_CTA'\n      : 'HOLD_OFFER';\n\n  const franchiseFamily = normalizeFamily(v.title || v.Title || '', v.topic || v.Topic || '');\n  const franchiseStrength = Math.min(10, Number(((realScore * 0.5) + (packagingScore * 0.35) + (retentionScore * 0.15)).toFixed(1)));\n  const franchiseReady = growthAction === 'MAKE_SEQUEL' || franchiseStrength >= 7.8;\n\n  return {\n    analyticsWindow: '72H',\n    youtubeVideoId: vid,\n    topic: v.topic || v.Topic || '',\n    title: v.title || v.Title || '',\n    predictedScore: Number(v.score || v.Score || 0),\n    realScore,\n    realViews: views,\n    realAvgRetention: avgPct,\n    realAvgViewDuration: avgDur,\n    realLikes: likes,\n    realSubs: subs,\n    realWatchMins: watchMins,\n    thumbImpressions: impressions,\n    thumbCtr: ctr,\n    packagingScore,\n    retentionScore,\n    scoreDelta: realScore - Number(v.score || v.Score || 0),\n    date: v.date || v.Date || '',\n    growthAction,\n    growthReason,\n    secondaryAction,\n    offerAction,\n    sequelIdeas: buildSequelIdeas(v.title || v.Title || '', v.topic || v.Topic || ''),\n    winnerFollowupNeeded: growthAction === 'MAKE_SEQUEL',\n    repackageNeeded: growthAction === 'REPACKAGE_TITLE_THUMB',\n    suppressLane: growthAction === 'DO_NOT_REPEAT',\n    offerUrl,\n    offerReady,\n    franchiseFamily,\n    franchiseStrength,\n    franchiseReady,\n    openingQualityScore: Number(v.openingQualityScore || 0),\n    finalBusinessScore: Number(v.finalBusinessScore || 0)\n  };\n});\n\nreturn results.map(r => ({ json: r }));"
+      }
+    },
+    {
+      "id": "548558b8-1079-4194-beb3-6fdfd0bc25b0",
+      "name": "Save 72-Hour Analytics",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -160,
+        740
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": "={{ $('72-Hour Validate Config').first().json.googleSheetId || '' }}",
+        "sheetName": "={{ $('72-Hour Validate Config').first().json.sheetAnalytics || '7-Day Analytics' }}",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ new Date().toISOString().slice(0,10) }}",
+            "videoDate": "={{ $json.date }}",
+            "topic": "={{ $json.topic }}",
+            "title": "={{ $json.title }}",
+            "youtubeVideoId": "={{ $json.youtubeVideoId }}",
+            "predictedScore": "={{ $json.predictedScore }}",
+            "realScore": "={{ $json.realScore }}",
+            "scoreDelta": "={{ $json.scoreDelta }}",
+            "views": "={{ $json.realViews }}",
+            "avgRetention": "={{ $json.realAvgRetention }}",
+            "likes": "={{ $json.realLikes }}",
+            "subsGained": "={{ $json.realSubs }}",
+            "watchMinutes": "={{ $json.realWatchMins }}",
+            "window": "={{ $json.analyticsWindow }}",
+            "thumbCtr": "={{ $json.thumbCtr }}",
+            "thumbImpressions": "={{ $json.thumbImpressions }}",
+            "growthAction": "={{ $json.growthAction }}",
+            "secondaryAction": "={{ $json.secondaryAction }}",
+            "offerAction": "={{ $json.offerAction }}",
+            "sequelIdeas": "={{ Array.isArray($json.sequelIdeas) ? $json.sequelIdeas.join(' | ') : '' }}"
+          }
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "de303f35-d1d5-481c-8bea-940650402321",
+      "name": "Queue Growth Actions",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -120,
+        1050
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": "={{ $json.googleSheetId || \"\" }}",
+        "sheetName": "={{ $json.sheetDrafts || \"Drafts\" }}",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ new Date().toISOString().slice(0,10) }}",
+            "topic": "={{ $json.topic }}",
+            "title": "={{ $json.title }}",
+            "youtubeVideoId": "={{ $json.youtubeVideoId }}",
+            "window": "={{ $json.analyticsWindow }}",
+            "action": "={{ $json.growthAction }}",
+            "reason": "={{ $json.growthReason }}",
+            "score": "={{ $json.realScore }}",
+            "notes": "={{ 'CTR ' + ($json.thumbCtr || 0) + ' | Retention ' + ($json.realAvgRetention || 0) + '%' }}",
+            "secondaryAction": "={{ $json.secondaryAction }}",
+            "offerAction": "={{ $json.offerAction }}",
+            "sequelIdeas": "={{ Array.isArray($json.sequelIdeas) ? $json.sequelIdeas.join(' | ') : '' }}"
+          }
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Channel Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Channel Config": {
+      "main": [
+        [
+          {
+            "node": "Validate Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Config": {
+      "main": [
+        [
+          {
+            "node": "Analytics Run Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analytics Run Router": {
+      "main": [
+        [
+          {
+            "node": "24-Hour Analytics Config",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "72-Hour Analytics Config",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "7-Day Analytics Config",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "24-Hour Analytics Config": {
+      "main": [
+        [
+          {
+            "node": "24-Hour Validate Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "72-Hour Analytics Config": {
+      "main": [
+        [
+          {
+            "node": "72-Hour Validate Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "7-Day Analytics Config": {
+      "main": [
+        [
+          {
+            "node": "7-Day Validate Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Videos Needing Analytics": {
+      "main": [
+        [
+          {
+            "node": "Filter 7-Day Old Videos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter 7-Day Old Videos": {
+      "main": [
+        [
+          {
+            "node": "Pull YouTube Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pull YouTube Analytics": {
+      "main": [
+        [
+          {
+            "node": "Compute Real Scores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Real Scores": {
+      "main": [
+        [
+          {
+            "node": "Save Real Analytics",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Queue Growth Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Real Analytics": {
+      "main": [
+        []
+      ]
+    },
+    "7-Day Validate Config": {
+      "main": [
+        [
+          {
+            "node": "Fetch Videos Needing Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "24-Hour Validate Config": {
+      "main": [
+        [
+          {
+            "node": "Fetch Videos Needing 24h Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "72-Hour Validate Config": {
+      "main": [
+        [
+          {
+            "node": "Fetch Videos Needing 72h Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Queue Growth Actions": {
+      "main": [
+        []
+      ]
+    },
+    "Fetch Videos Needing 24h Analytics": {
+      "main": [
+        [
+          {
+            "node": "Filter 24-Hour Videos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter 24-Hour Videos": {
+      "main": [
+        [
+          {
+            "node": "Pull 24-Hour Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pull 24-Hour Analytics": {
+      "main": [
+        [
+          {
+            "node": "Compute 24-Hour Scores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute 24-Hour Scores": {
+      "main": [
+        [
+          {
+            "node": "Save 24-Hour Analytics",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Queue Growth Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save 24-Hour Analytics": {
+      "main": [
+        []
+      ]
+    },
+    "Fetch Videos Needing 72h Analytics": {
+      "main": [
+        [
+          {
+            "node": "Filter 72-Hour Videos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter 72-Hour Videos": {
+      "main": [
+        [
+          {
+            "node": "Pull 72-Hour Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pull 72-Hour Analytics": {
+      "main": [
+        [
+          {
+            "node": "Compute 72-Hour Scores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute 72-Hour Scores": {
+      "main": [
+        [
+          {
+            "node": "Save 72-Hour Analytics",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Queue Growth Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save 72-Hour Analytics": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "76b7e322-28fc-42e9-991a-6587ea1cc104"
+}

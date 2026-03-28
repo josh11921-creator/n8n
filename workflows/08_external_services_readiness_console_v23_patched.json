@@ -1,0 +1,158 @@
+{
+  "name": "External Services Readiness Console v23 Debugged",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "8db1797a-06b8-4ff8-8583-e63144d1384d",
+      "name": "Manual Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -940,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { workflowPackVersion: 'v23', centralConfigWorkflowId: 'REPLACE_WITH_CENTRAL_CONFIG_WORKFLOW_ID' } }];"
+      },
+      "id": "4b2ef487-8901-4dc6-9967-d8b71f543844",
+      "name": "Workflow Bindings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -720,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "each",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Workflow Bindings').first().json.centralConfigWorkflowId }}",
+          "cachedResultName": "Dynamic via Workflow Bindings: centralConfigWorkflowId"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "2280e51f-7cf4-4ecd-9e8a-24f1d1d48902",
+      "name": "Load Central Config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -480,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst payload = $input.first().json || {};\nconst cc = payload.centralConfig || {};\nconst g = cc.globalConfig || {};\nconst bindingChecks = (((payload.centralConfigReadiness || {}).workflowBindingChecks) || []).map(b => ({ service: `Workflow Binding: ${b.key}`, key: b.key, ready: !!b.ready }));\nconst checks = [\n  { service: 'Groq', key: 'groqApiKey', ready: !!g.groqApiKey && !String(g.groqApiKey).includes('PASTE_') },\n  { service: 'Fliki', key: 'flikiApiKey', ready: !!g.flikiApiKey && !String(g.flikiApiKey).includes('PASTE_') },\n  { service: 'Google Sheets', key: 'googleSheetId', ready: !!g.googleSheetId && !String(g.googleSheetId).includes('PASTE_') },\n  { service: 'Upload-Post', key: 'uploadPostApiKey', ready: !!g.uploadPostApiKey && !String(g.uploadPostApiKey).includes('PASTE_') },\n  { service: 'YouTube', key: 'youtubeChannelId', ready: !!g.youtubeChannelId && !String(g.youtubeChannelId).includes('PASTE_') },\n  { service: 'Slack', key: 'slackWebhook', ready: !!g.slackWebhook && !String(g.slackWebhook).includes('PASTE_') },\n  { service: 'Main Site', key: 'mainSiteUrl', ready: !!g.mainSiteUrl && !String(g.mainSiteUrl).includes('PASTE_') }\n];\nconst allChecks = [...checks, ...bindingChecks];\nreturn [{ json: { ...payload, readinessChecks: allChecks, readyCount: allChecks.filter(c => c.ready).length, totalChecks: allChecks.length } }];\n"
+      },
+      "id": "149e0f77-bb0c-41da-9b31-e02f4debcf95",
+      "name": "Build Readiness Matrix",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -220,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": "={{ $json.centralConfig.globalConfig.googleSheetId }}",
+        "sheetName": "={{ $json.centralConfig.globalConfig.sheetDashboard || 'Dashboard' }}",
+        "options": {
+          "returnAll": false
+        }
+      },
+      "id": "0e9be63b-c93b-4662-a9b6-df0da48fbd83",
+      "name": "Test Google Sheets Access",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        40,
+        260
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst payload = $('Build Readiness Matrix').first().json || {};\nconst sheetRows = $input.all().map(i => i.json || {});\nconst checks = Array.isArray(payload.readinessChecks) ? payload.readinessChecks.slice() : [];\nconst sheetOk = !($input.first().json || {}).error;\nchecks.push({\n  service: 'Google Sheets Read',\n  key: 'sheetDashboard',\n  ready: sheetOk,\n  note: sheetOk ? 'Dashboard tab read succeeded or returned empty safely.' : String(($input.first().json || {}).error?.message || 'Google Sheets read failed')\n});\nconst readyCount = checks.filter(c => c.ready).length;\nconst notReady = checks.filter(c => !c.ready).map(c => c.service);\nreturn [{\n  json: {\n    workflowPackVersion: 'v23',\n    serviceChecks: checks,\n    readyCount,\n    totalChecks: checks.length,\n    notReady,\n    nextStep: notReady.length ? `Finish or reconnect: ${notReady.join(', ')}` : 'Core readiness looks good. Next, run Setup Audit and then one manual content test per channel.'\n  }\n}];\n"
+      },
+      "id": "10fd4924-65c7-42a3-8c02-9f32af1cb8b9",
+      "name": "Summarize Readiness",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        300,
+        340
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Start": {
+      "main": [
+        [
+          {
+            "node": "Workflow Bindings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Bindings": {
+      "main": [
+        [
+          {
+            "node": "Load Central Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Central Config": {
+      "main": [
+        [
+          {
+            "node": "Build Readiness Matrix",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Readiness Matrix": {
+      "main": [
+        [
+          {
+            "node": "Test Google Sheets Access",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test Google Sheets Access": {
+      "main": [
+        [
+          {
+            "node": "Summarize Readiness",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "0e05c042-5d68-4f04-8343-a32e0176db97"
+}

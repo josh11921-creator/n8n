@@ -1,0 +1,202 @@
+{
+  "name": "Health Dashboard Console v23 Debugged",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "89974dae-c6c0-4090-9680-a9985e24ebbe",
+      "name": "Manual Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1180,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { workflowPackVersion: 'v23', centralConfigWorkflowId: 'REPLACE_WITH_CENTRAL_CONFIG_WORKFLOW_ID' } }];"
+      },
+      "id": "4917222b-a9c0-43e8-951b-faf39c51e089",
+      "name": "Workflow Bindings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -960,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "each",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Workflow Bindings').first().json.centralConfigWorkflowId }}",
+          "cachedResultName": "Dynamic via Workflow Bindings: centralConfigWorkflowId"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "eddba62f-51e8-4dd0-a1ef-01fa6e67491c",
+      "name": "Load Central Config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -720,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": "={{ $json.centralConfig.globalConfig.googleSheetId }}",
+        "sheetName": "={{ $json.centralConfig.globalConfig.sheetRunLocks || 'Run Locks' }}",
+        "options": {
+          "returnAll": true
+        }
+      },
+      "id": "1265df16-92ec-4d97-80b9-633172c52a07",
+      "name": "Read Run Locks",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -420,
+        260
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": "={{ $('Load Central Config').first().json.centralConfig.globalConfig.googleSheetId }}",
+        "sheetName": "={{ $('Load Central Config').first().json.centralConfig.globalConfig.sheetDeadLetters || 'Dead Letters' }}",
+        "options": {
+          "returnAll": true
+        }
+      },
+      "id": "dbb15a4e-9b71-4d4c-8100-d9d5a27e78fa",
+      "name": "Read Dead Letters",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -420,
+        420
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": "={{ $('Load Central Config').first().json.centralConfig.globalConfig.googleSheetId }}",
+        "sheetName": "={{ $('Load Central Config').first().json.centralConfig.globalConfig.sheetCrossChannelRegistry || 'Cross-Channel Registry' }}",
+        "options": {
+          "returnAll": true
+        }
+      },
+      "id": "75794ddc-57ce-49f5-96ea-804b4c640a02",
+      "name": "Read Cross-Channel Registry",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -420,
+        580
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "\nfunction daysAgo(n) { const d = new Date(); d.setDate(d.getDate()-n); return d; }\nfunction asDate(v) { const d = new Date(v); return isNaN(d) ? null : d; }\nconst locks = $items('Read Run Locks', 0, 0).map(i => i.json || {});\nconst dead = $items('Read Dead Letters', 0, 0).map(i => i.json || {});\nconst registry = $items('Read Cross-Channel Registry', 0, 0).map(i => i.json || {});\nconst cutoff7 = daysAgo(7);\nconst cutoff14 = daysAgo(14);\nconst configReadiness = ($('Load Central Config').first().json || {}).centralConfigReadiness || {};\n\nconst recentLocks = locks.filter(r => { const d = asDate(r.date); return d && d >= cutoff7; });\nconst recentDead = dead.filter(r => { const d = asDate(r.date); return d && d >= cutoff7; });\nconst recentPublished = registry.filter(r => { const d = asDate(r.date || r.publishedAt); return d && d >= cutoff14; });\n\nconst channelCounts = {};\nfor (const row of recentPublished) {\n  const key = row.channelName || row.channel || 'unknown';\n  channelCounts[key] = (channelCounts[key] || 0) + 1;\n}\n\nreturn [{\n  json: {\n    workflowPackVersion: 'v23',\n    runLocksLast7d: recentLocks.length,\n    deadLettersLast7d: recentDead.length,\n    publishedLast14d: recentPublished.length,\n    publishedByChannelLast14d: channelCounts,\n    centralConfigReadiness: configReadiness,\n    deadLetterSteps: [...new Set(recentDead.map(r => r.errorStep).filter(Boolean))],\n    healthVerdict: recentDead.length > 5 ? 'Needs attention' : recentPublished.length === 0 ? 'No recent publishes detected' : 'Healthy enough to keep running',\n    nextStep: recentDead.length > 0 ? 'Check the latest dead letters and fix the repeat offender step first.' : 'No major health issues detected.'\n  }\n}];\n"
+      },
+      "id": "70c6dd42-682e-49d1-939c-df0db90cbdaf",
+      "name": "Summarize Health",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        420
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Start": {
+      "main": [
+        [
+          {
+            "node": "Workflow Bindings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Bindings": {
+      "main": [
+        [
+          {
+            "node": "Load Central Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Central Config": {
+      "main": [
+        [
+          {
+            "node": "Read Run Locks",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Dead Letters",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Cross-Channel Registry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Run Locks": {
+      "main": [
+        [
+          {
+            "node": "Summarize Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Dead Letters": {
+      "main": [
+        [
+          {
+            "node": "Summarize Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Cross-Channel Registry": {
+      "main": [
+        [
+          {
+            "node": "Summarize Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "ecc25e72-7e8d-4d8d-92a6-746c45142f41"
+}

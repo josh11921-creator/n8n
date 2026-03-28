@@ -1,0 +1,1757 @@
+{
+  "name": "Shared Engine Content + Publish v24 Maxed",
+  "nodes": [
+    {
+      "id": "cb1d8636-7a4d-4e78-8845-282024eaa226",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1800,
+        520
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "99e36835-7f77-476e-947c-6992965f725a",
+      "name": "Channel Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1560,
+        520
+      ],
+      "parameters": {
+        "jsCode": "return $input.all();"
+      }
+    },
+    {
+      "id": "a368e69d-a9f8-4b1c-a9bb-a840136c0556",
+      "name": "Validate Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1120,
+        480
+      ],
+      "parameters": {
+        "jsCode": "const cfg = items[0].json || {};\nconst missing = [];\nconst REQUIRED = ['niche','groqApiKey','flikiApiKey','slackWebhook','googleSheetId','uploadPostApiKey','youtubeChannelId'];\nfor (const f of REQUIRED) {\n  if (!cfg[f] || String(cfg[f]).includes('PASTE_')) missing.push(f);\n}\nconst policyIssues = [];\nconst bindingIssues = Array.isArray(cfg.configBindingIssues) ? cfg.configBindingIssues : [];\nif (bindingIssues.length) policyIssues.push('MISSING_BINDINGS');\nif (cfg.maintenanceMode) policyIssues.push('MAINTENANCE_MODE');\nif (cfg.channelEnabled === false) policyIssues.push('CHANNEL_DISABLED');\nif (cfg.channelAllowContent === false) policyIssues.push('CONTENT_DISABLED');\nif (cfg.publishEnabled === false || cfg.channelAllowPublish === false) policyIssues.push('PUBLISH_DISABLED');\nconst globalMode = String(cfg.globalMode || 'LIVE').toUpperCase();\nif (globalMode === 'PAUSED') policyIssues.push('GLOBAL_PAUSED');\nif (globalMode === 'TEST' && cfg.allowContentInTestMode !== true) policyIssues.push('TEST_MODE_BLOCKS_CONTENT');\nreturn [{\n  json: {\n    ...cfg,\n    configOk: missing.length === 0 && policyIssues.length === 0,\n    configError: [\n      missing.length ? 'MISSING: ' + missing.join(', ') : '',\n      policyIssues.length ? 'POLICY: ' + policyIssues.join(', ') : ''\n    ].filter(Boolean).join(' | '),\n    runId: cfg.runId || ('run_' + Date.now()),\n    startedAt: cfg.startedAt || new Date().toISOString(),\n    workflowPackVersion: cfg.workflowPackVersion || 'v24'\n  }\n}];"
+      }
+    },
+    {
+      "id": "249583fc-9957-45af-9272-029ee23b1fae",
+      "name": "Config OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -880,
+        480
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.configOk }}",
+              "value2": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "f3f68338-1606-4c43-a78a-991e7949244e",
+      "name": "Config Fail \u2192 Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -640,
+        640
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: { ...items[0].json, status:'CONFIG_FAILED', errorStep:'Validate Config', errorMessage:items[0].json.configError||'Unknown', timestamp:new Date().toISOString(), needsIntervention:true, channelName:items[0].json.channelName, workflowPackVersion:items[0].json.workflowPackVersion, lockKey:items[0].json.lockKey }}];\n"
+      }
+    },
+    {
+      "id": "85be6fe9-d386-4f2f-9e66-83e638ac814c",
+      "name": "Load Past Videos",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -640,
+        360
+      ],
+      "parameters": {
+        "operation": "read",
+        "documentId": "={{ $json.googleSheetId }}",
+        "sheetName": "={{ $json.sheetDashboard || 'Dashboard' }}",
+        "options": {
+          "returnAll": true
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "b3444f17-0d3f-4511-bd61-8c42a1d2327c",
+      "name": "Load Owner Notes",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -640,
+        500
+      ],
+      "parameters": {
+        "operation": "read",
+        "documentId": "={{ $('Validate Config').first().json.googleSheetId }}",
+        "sheetName": "={{ $('Validate Config').first().json.sheetOwnerNotes || 'Owner Notes' }}",
+        "options": {
+          "returnAll": false,
+          "limit": 10
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "6256f49c-87de-4c69-9f10-26121b1b8ece",
+      "name": "Merge Past Data + Notes",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -520,
+        430
+      ],
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      }
+    },
+    {
+      "id": "c58537d8-d5fb-43cd-a478-f125e007587e",
+      "name": "Competitive Intelligence + Owner Notes Engine",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const cfg = $('Validate Config').first().json || {};\nconst norm = (v='') => String(v).trim();\nconst lower = (v='') => norm(v).toLowerCase();\nconst avg = (arr=[]) => arr.length ? arr.reduce((a,b)=>a+b,0) / arr.length : 0;\nconst unique = (arr=[]) => [...new Set(arr.filter(Boolean))];\n\nlet rows = [];\ntry {\n  rows = $('Load Past Videos').all().map(i => i.json).filter(r => r.topic || r.Topic || r.title || r.Title);\n} catch (e) {}\n\nlet ownerNotes = [];\ntry {\n  ownerNotes = $('Load Owner Notes').all().map(i => i.json);\n} catch (e) {}\n\nconst ownerPriority = { high: 3, medium: 2, low: 1 };\nconst activeNotes = ownerNotes\n  .filter(n => lower(n.status || n.Status || 'active') !== 'done')\n  .sort((a,b) => (ownerPriority[lower(b.priority || b.Priority || 'medium')] || 1) - (ownerPriority[lower(a.priority || a.Priority || 'medium')] || 1))\n  .slice(0, 6)\n  .map(n => `[${String(lower(n.priority || n.Priority || 'medium')).toUpperCase()}] ${norm(n.note || n.Note || '')}`)\n  .filter(Boolean);\n\nfunction inferMixBucket(r) {\n  const lane = lower(r.contentLane || r.ContentLane || '');\n  const fmt = lower(r.selectedFormat || r.format || r.videoFormat || r.VideoFormat || '');\n  if (/comparison|free|versus|vs|winner/.test(lane + ' ' + fmt)) return 'buyer';\n  if (/tutorial|setup|review|walkthrough|deep/.test(lane + ' ' + fmt)) return 'authority';\n  return 'experiment';\n}\n\nconst normalized = rows.map((r, idx) => {\n  const topic = norm(r.topic || r.Topic || '');\n  const title = norm(r.title || r.Title || '');\n  const status = norm(r.status || r.Status || '').toUpperCase();\n  const score = Number(r.finalBusinessScore || r.cashCowScore || r.realScore || r.RealScore || r.score || r.Score || 0);\n  const views = Number(r.realViews || r.RealViews || r.views || r.Views || 0);\n  const retention = Number(r.realAvgRetention || r.RealAvgRetention || r.avgRetention || r.AvgRetention || 0);\n  const ctr = Number(r.thumbCtr || r.thumbnailCtr || r.videoThumbnailImpressionsClickRate || r.ctrPrediction || r.CtrPrediction || 0);\n  const impressions = Number(r.thumbImpressions || r.thumbnailImpressions || r.videoThumbnailImpressions || 0);\n  const watchMinutes = Number(r.realWatchMins || r.RealWatchMins || r.watchMinutes || r.WatchMinutes || 0);\n  const hookType = norm(r.hookType || r.HookType || '');\n  const format = norm(r.selectedFormat || r.format || r.videoFormat || r.VideoFormat || '');\n  const lane = norm(r.contentLane || r.ContentLane || '');\n  const titleStarter = title.split(/[:\\-]/)[0].slice(0, 30);\n  const created = new Date(r.date || r.Date || r.publishedAt || r.PublishedAt || 0).getTime() || (Date.now() - idx * 86400000);\n  return {\n    topic,\n    title,\n    status,\n    score,\n    views,\n    retention,\n    ctr,\n    impressions,\n    watchMinutes,\n    hookType,\n    format,\n    lane,\n    titleStarter,\n    buyerIntentScore: Number(r.buyerIntentScore || r.BuyerIntentScore || 0),\n    firstDollarScore: Number(r.firstDollarScore || r.FirstDollarScore || 0),\n    audienceOwnershipScore: Number(r.audienceOwnershipScore || r.AudienceOwnershipScore || 0),\n    authenticityScore: Number(r.authenticityScore || r.AuthenticityScore || 0),\n    sequelDepthScore: Number(r.sequelDepthScore || r.SequelDepthScore || 0),\n    monetizationFit: norm(r.monetizationFit || r.MonetizationFit || ''),\n    primaryKeyword: norm(r.primaryKeyword || r.PrimaryKeyword || ''),\n    mixBucket: inferMixBucket(r),\n    created\n  };\n}).sort((a,b) => b.created - a.created);\n\nconst publishedOnly = normalized.filter(r => r.status === 'PUBLISHED' || r.status === 'READY_TO_RENDER' || r.status === 'DRAFT_SAVED');\nconst recentPublished = publishedOnly.slice(0, 20);\n\nconst recent7 = publishedOnly.slice(0, 7);\nconst prev7 = publishedOnly.slice(7, 14);\nconst winnerFn = (r) => r.score >= 8 || (r.views >= 500 && r.retention >= 38 && r.ctr >= 4.2);\nconst loserFn = (r) => (r.views > 0 && r.views < 120) || (r.retention > 0 && r.retention < 24) || (r.ctr > 0 && r.ctr < 2.6);\n\nconst recentWinRate = recent7.length ? Math.round(100 * recent7.filter(winnerFn).length / recent7.length) : 0;\nconst prevWinRate = prev7.length ? Math.round(100 * prev7.filter(winnerFn).length / prev7.length) : 0;\nconst winTrend = recentWinRate > prevWinRate ? 'IMPROVING' : recentWinRate < prevWinRate ? 'DECLINING' : 'STABLE';\n\nfunction scoreGroups(entries, keyFn) {\n  const groups = {};\n  for (const r of entries) {\n    const key = keyFn(r);\n    if (!key) continue;\n    groups[key] = groups[key] || { key, count: 0, winners: 0, avgCtr: 0, avgRetention: 0, avgViews: 0, weightedScore: 0 };\n    const g = groups[key];\n    g.count += 1;\n    g.winners += winnerFn(r) ? 1 : 0;\n    g.avgCtr += r.ctr;\n    g.avgRetention += r.retention;\n    g.avgViews += r.views;\n    g.weightedScore += (r.score * 0.5) + (r.ctr * 0.25) + (r.retention * 0.10) + (Math.min(r.views, 3000) / 3000 * 10 * 0.15);\n  }\n  return Object.values(groups).map(g => ({\n    key: g.key,\n    count: g.count,\n    winRate: Number((g.winners / Math.max(g.count, 1)).toFixed(2)),\n    avgCtr: Number((g.avgCtr / Math.max(g.count, 1)).toFixed(1)),\n    avgRetention: Number((g.avgRetention / Math.max(g.count, 1)).toFixed(1)),\n    avgViews: Math.round(g.avgViews / Math.max(g.count, 1)),\n    weightedScore: Number((g.weightedScore / Math.max(g.count, 1)).toFixed(2))\n  })).sort((a,b) => b.weightedScore - a.weightedScore).slice(0, 5);\n}\n\nconst bestHookTypes = scoreGroups(publishedOnly.filter(r => r.hookType), r => r.hookType);\nconst bestFormatFamilies = scoreGroups(publishedOnly.filter(r => r.format), r => r.format);\nconst bestContentLanes = scoreGroups(publishedOnly.filter(r => r.lane), r => r.lane);\nconst bestTitleStarters = scoreGroups(publishedOnly.filter(r => r.titleStarter), r => r.titleStarter);\nconst topKeywords = scoreGroups(publishedOnly.filter(r => r.primaryKeyword), r => r.primaryKeyword);\n\nconst mixWindow = recentPublished.slice(0, 10);\nconst mixCounts = { buyer: 0, authority: 0, experiment: 0 };\nfor (const row of mixWindow) mixCounts[row.mixBucket] = (mixCounts[row.mixBucket] || 0) + 1;\nconst mixTotal = Math.max(mixWindow.length, 1);\nconst mixNow = {\n  buyer: Number((mixCounts.buyer / mixTotal).toFixed(2)),\n  authority: Number((mixCounts.authority / mixTotal).toFixed(2)),\n  experiment: Number((mixCounts.experiment / mixTotal).toFixed(2))\n};\nconst targets = cfg.moneyMixTargets || { buyer: 0.7, authority: 0.2, experiment: 0.1 };\nconst underusedWinningLanes = bestContentLanes\n  .filter(x => x.weightedScore >= 7.5 && !mixWindow.some(r => lower(r.lane) === lower(x.key)))\n  .map(x => x.key)\n  .slice(0, 3);\n\nconst contentMixRecommendation = [\n  `Buyer-intent evergreen: ${Math.round((targets.buyer || 0.7) * 100)}%`,\n  `Authority/trust: ${Math.round((targets.authority || 0.2) * 100)}%`,\n  `Experiments: ${Math.round((targets.experiment || 0.1) * 100)}%`\n].join(' | ');\n\nconst mixWarnings = [];\nif (mixNow.buyer < (targets.buyer || 0.7) - 0.15) mixWarnings.push('Increase buyer-intent videos');\nif (mixNow.authority < (targets.authority || 0.2) - 0.10) mixWarnings.push('Add one authority/tutorial video');\nif (mixNow.experiment > (targets.experiment || 0.1) + 0.10) mixWarnings.push('Reduce experiments until winners improve');\n\nconst topGapIdeas = (cfg.gapIdeasSeed || []).slice(0, 6);\nconst offerCatalogSummary = (cfg.offerCatalog || []).map(o => `${o.label} (${o.type})`).slice(0, 5);\n\nconst selfAdjustment = winTrend === 'DECLINING'\n  ? 'Tighten to the top hook, format, and lane. Reduce experiments for the next 5 uploads.'\n  : winTrend === 'IMPROVING'\n  ? 'Double down on current winners and spin the best topic into sequels.'\n  : 'Stay near the winning lanes and keep a small test budget for fresh angles.';\n\nconst pastTitles = unique(recentPublished.map(r => r.title));\nconst pastHooks = unique(recentPublished.map(r => r.hookType));\nconst avoidTopics = unique(recentPublished.map(r => r.topic)).slice(0, 20);\n\nconst strategyBrief = [\n  `Win trend: ${winTrend}. Recent 7-video win rate: ${recentWinRate}% vs previous ${prevWinRate}%.`,\n  `Best hook types: ${bestHookTypes.slice(0,3).map(x => x.key).join(', ') || 'none yet'}.`,\n  `Best formats: ${bestFormatFamilies.slice(0,3).map(x => x.key).join(', ') || 'none yet'}.`,\n  `Best content lanes: ${bestContentLanes.slice(0,3).map(x => x.key).join(', ') || 'none yet'}.`,\n  `Money mix target: ${contentMixRecommendation}. Current mix: buyer ${Math.round(mixNow.buyer*100)}%, authority ${Math.round(mixNow.authority*100)}%, experiment ${Math.round(mixNow.experiment*100)}%.`,\n  mixWarnings.length ? `Mix warnings: ${mixWarnings.join('; ')}.` : 'Mix is roughly on target.',\n  underusedWinningLanes.length ? `Underused winning lanes: ${underusedWinningLanes.join(', ')}.` : 'No underused winning lanes detected.',\n  topKeywords.length ? `Top keywords: ${topKeywords.slice(0,3).map(x => x.key).join(', ')}.` : 'No keyword winners yet.',\n  topGapIdeas.length ? `Gap ideas to consider: ${topGapIdeas.join(' | ')}.` : '',\n  offerCatalogSummary.length ? `Available offer stack: ${offerCatalogSummary.join('; ')}.` : '',\n  activeNotes.length ? `Owner notes: ${activeNotes.join(' | ')}.` : ''\n].filter(Boolean).join('\\n');\n\nreturn [{\n  json: {\n    ...cfg,\n    recentWinRate,\n    prevWinRate,\n    winTrend,\n    selfAdjustment,\n    ownerNotesCount: activeNotes.length,\n    ownerNotesApplied: activeNotes,\n    bestHookTypes,\n    bestFormatFamilies,\n    bestContentLanes,\n    bestTitleStarters,\n    topKeywords,\n    pastTitles,\n    pastHooks,\n    recentPublished: recentPublished.map(r => ({\n      topic: r.topic,\n      title: r.title,\n      status: r.status,\n      score: r.score,\n      contentLane: r.lane,\n      monetizationFit: r.monetizationFit\n    })),\n    avoidTopics,\n    gapIdeasSeed: topGapIdeas,\n    offerCatalog: cfg.offerCatalog || [],\n    offerCatalogSummary,\n    contentMixNow: mixNow,\n    contentMixRecommendation,\n    underusedWinningLanes,\n    strategyBrief\n  }\n}];\n"
+      }
+    },
+    {
+      "id": "ddcfa1d1-d2a2-4acf-8c45-0004c4dbc4b2",
+      "name": "Research + Score + Script (1 Call)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -160,
+        400
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $json.groqApiKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={{ {\n  model: $json.groqModel || 'llama-3.3-70b-versatile',\n  messages: [\n    {\n      role: 'system',\n      content: `You are the strategy brain for a faceless YouTube channel. Return ONLY valid JSON with these keys:\ntopic, whyThisWillWork, competitorGap, contentGapAngle, mainPainPoint, score, projectedRoi, originalityScore, trustScore, evergreenScore, followupPotential, riskScore, searchIntentScore, searchDemand, buyerIntent, buyerIntentScore, firstDollarScore, audienceOwnershipScore, authenticityScore, sequelDepthScore, sponsorSafetyScore, monetizationFit, primaryOfferType, regularViewerFit, thumbnailPrompt, longVideo, shorts.\n\nRules:\n- Pick a topic with clear search demand and money potential.\n- Avoid fake urgency, fear tactics, and generic guru language.\n- Include one honest limitation or tradeoff in the script.\n- Make the video feel original, useful, and specific.\n- Use one clear next step, not a pile of offers.\n- longVideo must contain title, hook, script, cta.\n- shorts must be an array with exactly ${$json.shortCount || 1} entries.\n- Keep title under 60 characters.\n- Make scripts helpful enough to rank and commercially useful enough to monetize.\n- Favor concrete local-service business use cases, clear before/after outcomes, and simple stack choices.\n- Mention the business type, the software being replaced, the monthly cost/time pain, and the one main tradeoff.\n- Bias toward broad but buyer-intent topics: free-vs-paid, replace-X, cheaper stack, or 3-app consolidation.\n- Open the long video with the cost problem in the first 15 seconds.`\n    },\n    {\n      role: 'user',\n      content: `${$json.strategyBrief}\n\nNiche: ${$json.niche}\nKeywords: ${$json.nicheKeywords}\nAvoid topics: ${($json.avoidTopics || []).join(' | ')}\nGap ideas: ${($json.gapIdeasSeed || []).join(' | ')}\nOffer stack: ${(Array.isArray($json.offerCatalogSummary) ? $json.offerCatalogSummary.join(' | ') : '')}\nAudience: ${$json.targetAudience || ''}\nContent lanes: ${($json.contentLanes || []).join(' | ')}\nMoney mix: ${JSON.stringify($json.moneyMixTargets || {})}\nDate: ${new Date().toISOString().slice(0,10)}\n\nReturn JSON only.`\n    }\n  ],\n  temperature: 0.55,\n  max_tokens: 4000\n} }}",
+        "options": {
+          "timeout": 60000
+        },
+        "bodyContentType": "json",
+        "contentType": "json"
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "08d3a13c-b104-47d0-af5a-334f12c0c597",
+      "name": "Parse + Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const j = items[0].json || {};\nconst prev = $('Competitive Intelligence + Owner Notes Engine').first().json || {};\nlet raw = '';\ntry { raw = j.choices?.[0]?.message?.content || ''; } catch(e) {}\nlet data = null;\nlet parseError = '';\ntry { data = JSON.parse(String(raw).replace(/```json|```/g, '').trim()); } catch(e) { parseError = 'Parse: ' + e.message; }\n\nif (!data) {\n  return [{ json: { ...prev, status:'PARSE_FAILED', errorStep:'Research', errorMessage:parseError || 'No JSON returned', needsIntervention:true, timestamp:new Date().toISOString() } }];\n}\n\nconst clamp = (n, fallback=0) => {\n  const v = Number(n);\n  if (Number.isFinite(v)) return Math.max(0, Math.min(10, v));\n  return fallback;\n};\n\nconst textLevelMap = { high: 8.8, medium: 7.2, low: 5.6 };\nconst longVideo = data.longVideo || {};\nconst errors = [];\n\nif ((prev.runType || '').toUpperCase() !== 'SHORTS_ONLY') {\n  if (!longVideo.script || String(longVideo.script).length < 350) errors.push('Script short');\n  if (!longVideo.title || String(longVideo.title).length < 10) errors.push('Title missing');\n}\nif (!data.topic) errors.push('No topic');\n\nconst requiredShorts = Number(prev.shortCount || 1);\nif (!Array.isArray(data.shorts) || data.shorts.length < requiredShorts) errors.push(`Need ${requiredShorts}+ shorts`);\n\nconst score = clamp(data.score, 0);\nconst projectedRoi = clamp(data.projectedRoi || data.projectedROI, 8);\nconst originalityScore = clamp(data.originalityScore || data.uniquenessScore, 8);\nconst trustScore = clamp(data.trustScore, 8);\nconst evergreenScore = clamp(data.evergreenScore, 8);\nconst followupPotential = clamp(data.followupPotential, 8);\nconst riskScore = clamp(data.riskScore, 1.5);\nconst searchIntentScore = clamp(data.searchIntentScore, 8);\nconst buyerIntentScore = clamp(data.buyerIntentScore, textLevelMap[String(data.buyerIntent || 'medium').toLowerCase()] || 7.2);\nconst firstDollarScore = clamp(data.firstDollarScore, buyerIntentScore - 0.2);\nconst audienceOwnershipScore = clamp(data.audienceOwnershipScore, 7.0);\nconst authenticityScore = clamp(data.authenticityScore, 8.0);\nconst sequelDepthScore = clamp(data.sequelDepthScore, 8.0);\nconst sponsorSafetyScore = clamp(data.sponsorSafetyScore, 8.2);\nconst searchDemandScore = clamp(data.searchDemandScore, textLevelMap[String(data.searchDemand || 'medium').toLowerCase()] || 7.2);\n\nif (score < Number(prev.minScoreToPublish || 6)) errors.push(`Score ${score} < minimum`);\nif (originalityScore < Number(prev.minOriginalityScore || 7.5)) errors.push('Originality too low');\nif (trustScore < Number(prev.minTrustScore || 8)) errors.push('Trust score too low');\nif (evergreenScore < Number(prev.minEvergreenScore || 7)) errors.push('Evergreen score too low');\nif (followupPotential < Number(prev.minFollowupPotential || 7)) errors.push('Follow-up potential too low');\nif (projectedRoi < Number(prev.minProjectedRoi || 7)) errors.push('Projected ROI too low');\nif (riskScore > Number(prev.maxRiskScore || 2)) errors.push('Risk score too high');\nif (searchIntentScore < Number(prev.minSearchIntentScore || 7.5)) errors.push('Search intent too low');\nif (buyerIntentScore < Number(prev.minBuyerIntentNumericScore || 7)) errors.push('Buyer intent too low');\nif (firstDollarScore < Number(prev.minFirstDollarScore || 6.8)) errors.push('First-dollar speed too low');\nif (audienceOwnershipScore < Number(prev.minAudienceOwnershipScore || 6.2)) errors.push('Audience ownership score too low');\nif (authenticityScore < Number(prev.minAuthenticityScore || 7.5)) errors.push('Authenticity score too low');\nif (sequelDepthScore < Number(prev.minSequelDepthScore || 7.0)) errors.push('Sequel depth too low');\nif (sponsorSafetyScore < Number(prev.minSponsorSafetyScore || 7.0)) errors.push('Sponsor safety too low');\n\nif (errors.length) {\n  return [{ json: {\n    ...prev,\n    status:'VALIDATION_FAILED',\n    errorStep:'Validation',\n    errorMessage: errors.join('; '),\n    needsIntervention:false,\n    topic:data.topic || '',\n    score,\n    buyerIntentScore,\n    firstDollarScore,\n    audienceOwnershipScore,\n    authenticityScore,\n    sequelDepthScore,\n    sponsorSafetyScore,\n    timestamp:new Date().toISOString()\n  } }];\n}\n\nconst cashCowPreScore = Number(((score*0.22)+(projectedRoi*0.12)+(buyerIntentScore*0.14)+(firstDollarScore*0.12)+(audienceOwnershipScore*0.10)+(authenticityScore*0.10)+(sequelDepthScore*0.10)+(searchIntentScore*0.10)).toFixed(1));\n\nreturn [{\n  json: {\n    ...prev,\n    status:'READY_FOR_SEO',\n    topic:data.topic,\n    whyThisWillWork:data.whyThisWillWork || '',\n    competitorGap:data.competitorGap || '',\n    contentGapAngle:data.contentGapAngle || '',\n    mainPainPoint:data.mainPainPoint || '',\n    regularViewerFit:data.regularViewerFit || 'medium',\n    score,\n    projectedRoi,\n    originalityScore,\n    trustScore,\n    evergreenScore,\n    followupPotential,\n    riskScore,\n    searchIntentScore,\n    searchDemand:data.searchDemand || 'medium',\n    searchDemandScore,\n    buyerIntent:data.buyerIntent || 'medium',\n    buyerIntentScore,\n    firstDollarScore,\n    audienceOwnershipScore,\n    authenticityScore,\n    sequelDepthScore,\n    sponsorSafetyScore,\n    monetizationFit:data.monetizationFit || 'affiliate',\n    primaryOfferType:data.primaryOfferType || '',\n    thumbnailPrompt:data.thumbnailPrompt || '',\n    longVideoTitle:longVideo.title,\n    longVideoHook:longVideo.hook || '',\n    longVideoScript:longVideo.script || '',\n    longVideoCta:longVideo.cta || '',\n    shorts:Array.isArray(data.shorts) ? data.shorts : [],\n    scriptWordCount:(String(longVideo.script || '').trim().split(/\\s+/).filter(Boolean).length),\n    cashCowPreScore,\n    needsIntervention:false,\n    timestamp:new Date().toISOString()\n  }\n}];\n"
+      }
+    },
+    {
+      "id": "f8c15fa7-1469-4934-99a7-1ce8f3181d96",
+      "name": "SEO + Keywords Optimizer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        320,
+        400
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Channel Config').first().json.groqApiKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={{ {\n  model: $('Channel Config').first().json.groqModel || 'llama-3.3-70b-versatile',\n  messages: [\n    {\n      role: 'system',\n      content: `You are a YouTube SEO and packaging expert. Return ONLY valid JSON with keys:\noptimizedTitle, titleVariantB, titleVariantC, optimizedDescription, primaryKeyword, secondaryKeywords, longTailKeywords, tags, hashtags, thumbnailBrief, pinnedComment, endScreenText, timestamps, ctrPrediction, searchVolume, competition, rankDifficulty, seoScore, optimizationNotes, suggestedPostingTime, relatedVideoIdeas, offerAngle, newsletterAngle.\n\nRules:\n- Title under 60 chars.\n- Keep the thumbnail concept truthful and simple.\n- Write one pinned comment that supports ranking and one clear next step.\n- For small channels, favor low-to-medium competition phrases with strong buyer intent.\n- Front-load the business type, software category, and cost-cut angle when possible.\n- Prefer comparison-driven packaging like cheaper stack, replace X, free alternative, or X vs Y.`\n    },\n    {\n      role: 'user',\n      content: `Topic: ${$json.topic}\nTitle: ${$json.longVideoTitle}\nHook: ${($json.longVideoHook || '').slice(0, 250)}\nScript start: ${($json.longVideoScript || '').slice(0, 500)}\nBuyer intent: ${$json.buyerIntent} (${Number($json.buyerIntentScore || 0).toFixed(1)}/10)\nFirst-dollar score: ${Number($json.firstDollarScore || 0).toFixed(1)}/10\nAudience ownership score: ${Number($json.audienceOwnershipScore || 0).toFixed(1)}/10\nMonetization fit: ${$json.monetizationFit}\nGap: ${$json.competitorGap}\nReturn JSON only.`\n    }\n  ],\n  temperature: 0.45,\n  max_tokens: 2500\n} }}",
+        "options": {
+          "timeout": 45000
+        },
+        "bodyContentType": "json",
+        "contentType": "json"
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000
+    },
+    {
+      "id": "26135ab0-a294-48a1-916b-dc6bb144bfbf",
+      "name": "Apply SEO + Build Package",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const j = items[0].json || {};\nconst prev = $('Parse + Validate').first().json || {};\nif (prev.status !== 'READY_FOR_SEO') return [{ json: prev }];\n\nlet seo = null;\ntry {\n  seo = JSON.parse(String(j.choices?.[0]?.message?.content || '').replace(/```json|```/g, '').trim());\n} catch (e) {}\n\nif (!seo) {\n  seo = {\n    optimizedTitle: prev.longVideoTitle,\n    titleVariantB: prev.longVideoTitle,\n    titleVariantC: prev.longVideoTitle,\n    optimizedDescription: prev.longVideoTitle + '\\n\\n' + (prev.longVideoCta || 'Subscribe for the next one.'),\n    primaryKeyword: prev.topic,\n    secondaryKeywords: [],\n    longTailKeywords: [],\n    tags: ['local business software', 'AI automation', 'cheap CRM', 'service business tools'],\n    hashtags: ['#SmallBusinessAI', '#LocalBusinessTools', '#Automation'],\n    thumbnailBrief: {\n      text: (prev.longVideoTitle || '').split(' ').slice(0, 4).join(' ').toUpperCase(),\n      emotion: 'clarity',\n      colorScheme: 'high contrast dark background',\n      layout: 'left text right visual'\n    },\n    pinnedComment: '',\n    endScreenText: '',\n    timestamps: [],\n    ctrPrediction: 7.0,\n    searchVolume: 'medium',\n    competition: 'medium',\n    rankDifficulty: 'medium',\n    seoScore: 7.4,\n    optimizationNotes: 'Fallback SEO package',\n    suggestedPostingTime: '',\n    relatedVideoIdeas: [],\n    offerAngle: 'one clear next step',\n    newsletterAngle: 'simple follow-up resource'\n  };\n}\n\nconst cfg = $('Channel Config').first().json || prev;\nconst titleA = seo.optimizedTitle || prev.longVideoTitle;\nconst titleB = seo.titleVariantB || titleA;\nconst titleC = seo.titleVariantC || titleA;\nconst timestamps = Array.isArray(seo.timestamps) ? seo.timestamps : [];\nlet description = seo.optimizedDescription || prev.longVideoTitle + '\\n\\n' + (prev.longVideoCta || '');\nif (timestamps.length && !description.includes('0:00')) description += '\\n\\n' + timestamps.join('\\n');\nconst hashtags = Array.isArray(seo.hashtags) && seo.hashtags.length ? seo.hashtags : ['#AItools', '#Automation'];\nif (!description.includes('#')) description += '\\n\\n' + hashtags.join(' ');\nconst tags = [...new Set([...(seo.tags || []), ...(seo.secondaryKeywords || []), ...(seo.longTailKeywords || [])])].filter(Boolean).slice(0, 15);\n\nfunction slugify(input = '') {\n  return String(input || '')\n    .toLowerCase()\n    .replace(/['\u2019]/g, '')\n    .replace(/[^a-z0-9]+/g, '-')\n    .replace(/^-+|-+$/g, '')\n    .replace(/-{2,}/g, '-')\n    .slice(0, 72);\n}\n\nfunction titleScore(t = '') {\n  const s = String(t || '');\n  let score = 6.0;\n  if (s.length >= 35 && s.length <= 60) score += 1.0;\n  if (/vs|how to|free|best|replace|automate|worth|alternative|cheaper/i.test(s)) score += 1.0;\n  if (/\\d/.test(s)) score += 0.3;\n  if (!/(crazy|insane|shocking|secret)/i.test(s)) score += 0.2;\n  return Math.min(10, Number(score.toFixed(1)));\n}\n\nfunction pickOffer(offers, payload) {\n  const cleanOffers = Array.isArray(offers) ? offers.filter(Boolean) : [];\n  const topic = String(payload.topic || '').toLowerCase();\n  const lane = String(payload.contentLane || '').toLowerCase();\n  const desiredType = String(payload.primaryOfferType || '').toLowerCase();\n  if (!cleanOffers.length) return null;\n  const scored = cleanOffers.map((offer, idx) => {\n    const fit = Array.isArray(offer.fit) ? offer.fit.map(f => String(f).toLowerCase()) : [];\n    let score = Number(offer.priority || 1);\n    if (desiredType && String(offer.type || '').toLowerCase().includes(desiredType)) score += 3;\n    if (fit.some(f => lane.includes(f) || topic.includes(f))) score += 2;\n    if (/comparison|affiliate|winner/i.test(String(payload.monetizationFit || '')) && /comparison|winner|tool-stack/.test(String(offer.type || ''))) score += 2;\n    if (/tutorial|template/i.test(String(payload.monetizationFit || '')) && /template|checklist|guide/.test(String(offer.type || ''))) score += 2;\n    if (/template|checklist/.test(String(offer.type || '')) && /setup|how to|automate/i.test(topic + ' ' + titleA)) score += 1.5;\n    return { ...offer, score, idx };\n  }).sort((a, b) => b.score - a.score);\n  return scored[0] || cleanOffers[0];\n}\n\nfunction resolveOfferUrl(offer, payload, cfg) {\n  if (!offer) return '';\n  const explicit = String(offer.url || '').trim();\n  if (explicit && !explicit.includes('PASTE_')) return explicit;\n\n  const base = String(cfg.offerBaseUrl || '').replace(/\\/+$/, '');\n  if (!base || base.includes('PASTE_')) return '';\n\n  const topicSlug = slugify(payload.topic || payload.longVideoTitle || payload.primaryKeyword || 'resource');\n  const titleSlug = slugify(payload.longVideoTitle || payload.topic || 'resource');\n  const lane = String(payload.contentLane || '').toLowerCase();\n  const kind = String(offer.type || '').toLowerCase();\n\n  let path = String(cfg.offerBasePath || '/resources');\n  if (/template|checklist|guide/.test(kind)) path = String(cfg.templateBasePath || '/templates');\n  if (/comparison|winner/.test(kind) || /vs|alternative|worth|paid|free/i.test(titleA)) path = String(cfg.comparisonBasePath || '/compare');\n  if (/tool-stack/.test(kind)) path = String(cfg.toolStackBasePath || '/stack');\n  if (/guide/.test(kind) || /setup|tutorial|automate/i.test(lane + ' ' + titleA)) path = String(cfg.guideBasePath || '/guides');\n\n  const slug = /comparison|winner/.test(kind) ? titleSlug : topicSlug;\n  return `${base}${path}/${slug}`;\n}\n\nfunction addUtm(url, source = 'youtube', medium = 'organic', campaign = '') {\n  if (!url) return '';\n  const glue = url.includes('?') ? '&' : '?';\n  const campaignSafe = slugify(campaign || titleA || prev.topic || 'channel');\n  return `${url}${glue}utm_source=${source}&utm_medium=${medium}&utm_campaign=${campaignSafe}`;\n}\n\nconst selectedOffer = pickOffer(prev.offerCatalog || cfg.offerCatalog || [], prev);\nconst rawOfferUrl = resolveOfferUrl(selectedOffer, prev, cfg);\nconst offerUrl = addUtm(rawOfferUrl, 'youtube', 'organic', titleA);\nconst offerLabel = selectedOffer?.label || '';\nconst offerType = selectedOffer?.type || '';\nconst offerCta = selectedOffer?.cta || (offerLabel ? `See ${offerLabel}` : 'Get the resource');\nconst oneLinkOfferPageTitle = offerLabel ? `${offerLabel} \u2014 best next step after this video` : '';\nconst offerLine = offerUrl ? `${offerCta}: ${offerUrl}` : '';\n\nconst thumbText = seo.thumbnailBrief?.text || titleA.split(' ').slice(0, 4).join(' ').toUpperCase();\nconst thumbEmotion = seo.thumbnailBrief?.emotion || 'clarity';\nconst thumbColors = seo.thumbnailBrief?.colorScheme || 'high contrast';\nconst thumbLayout = seo.thumbnailBrief?.layout || 'left text, right visual';\nconst basePrompt = prev.thumbnailPrompt || `YouTube thumbnail for ${titleA}.`;\n\nconst promptCandidates = [\n  {\n    label: 'A',\n    angle: 'outcome-first',\n    score: 8.4,\n    prompt: `${basePrompt} Scene focuses on the end result. Use ${thumbColors}. ${thumbLayout}. Big simple visual outcome. No faces. Minimal clutter.`\n  },\n  {\n    label: 'B',\n    angle: 'comparison',\n    score: 8.2,\n    prompt: `${basePrompt} Create a side-by-side comparison visual with one clear winner. Use ${thumbColors}. Add space for short bold text: ${thumbText}. No faces.`\n  },\n  {\n    label: 'C',\n    angle: 'manual-vs-smart',\n    score: 7.9,\n    prompt: `${basePrompt} Show manual approach versus smart approach. Clean split composition. ${thumbColors}. Add a strong central object and simple arrows. No faces.`\n  }\n];\n\nif ((prev.contentLane || '').includes('free') || /free|paid|worth|alternative/i.test(titleA)) promptCandidates[1].score += 0.5;\nif ((prev.contentLane || '').includes('automation') || /automate|workflow|manual/i.test(titleA)) promptCandidates[2].score += 0.5;\nif (offerUrl) promptCandidates[0].score += 0.1;\npromptCandidates.sort((a, b) => b.score - a.score);\n\nconst ctrPrediction = Number(seo.ctrPrediction || 7.0);\nconst seoScore = Number(seo.seoScore || 7.4);\nconst packagingScore = Math.min(10, Number(((ctrPrediction * 0.45) + (seoScore * 0.35) + (titleScore(titleA) * 0.20)).toFixed(1)));\nconst thumbnailScore = Math.min(10, Number((promptCandidates[0].score + (ctrPrediction * 0.15)).toFixed(1)));\nconst offerCoverageScore = offerUrl ? 9.2 : 5.4;\nconst opsSimplicityScore = Math.min(10, Number((8.4 + (offerUrl ? 0.4 : 0) + (promptCandidates.length === 3 ? 0.2 : 0)).toFixed(1)));\nconst cashCowScore = Math.min(10, Number(((prev.cashCowPreScore || 7.5) * 0.47 + packagingScore * 0.18 + seoScore * 0.10 + thumbnailScore * 0.12 + offerCoverageScore * 0.08 + opsSimplicityScore * 0.05).toFixed(1)));\n\nconst relatedVideoIdeas = Array.isArray(seo.relatedVideoIdeas) ? seo.relatedVideoIdeas.filter(Boolean).slice(0, 5) : [];\nconst sequelIdeas = relatedVideoIdeas.length ? relatedVideoIdeas : [\n  `${titleA} for beginners`,\n  `${prev.topic} mistakes to avoid`,\n  `${prev.topic} cheaper/free version`\n];\n\nconst assetPlan = [\n  {\n    assetType: /comparison|winner/.test(offerType) || /vs|alternative|worth|paid|free/i.test(titleA) ? 'comparison-page' : /template|checklist|guide/.test(offerType) ? 'template-page' : 'resource-page',\n    label: offerLabel || 'Primary resource',\n    url: rawOfferUrl || '',\n    cta: offerCta\n  },\n  {\n    assetType: 'pinned-comment',\n    label: 'Pinned comment CTA',\n    url: offerUrl || '',\n    cta: offerCta\n  }\n].filter(a => a.url || a.assetType === 'pinned-comment');\n\nconst oneLinkPinnedComment = seo.pinnedComment\n  ? `${String(seo.pinnedComment).slice(0, 220)}${offerLine ? '\\n\\n' + offerLine : ''}`\n  : offerLine\n    ? `${titleA} was built to solve one clear problem. ${offerLine}\\n\\nWhat should the next video compare or automate?`\n    : `What should the next video compare or automate?`;\n\nconst descriptionWithOffer = offerLine ? `${description}\\n\\n${offerLine}` : description;\nconst endScreenText = seo.endScreenText || `Next: ${sequelIdeas[0] || 'the next workflow breakdown'}`;\nconst offerSetupNeeded = !offerUrl;\nconst offerReadiness = offerUrl ? 'READY' : 'NEEDS_BASE_URL';\n\nreturn [{\n  json: {\n    ...prev,\n    status: 'READY_TO_RENDER',\n    seoOptimized: true,\n    seoTitle: titleA,\n    seoTitleB: titleB,\n    seoTitleC: titleC,\n    longVideoTitle: titleA,\n    description: descriptionWithOffer,\n    seoDescription: descriptionWithOffer,\n    primaryKeyword: seo.primaryKeyword || prev.topic,\n    secondaryKeywords: Array.isArray(seo.secondaryKeywords) ? seo.secondaryKeywords : [],\n    longTailKeywords: Array.isArray(seo.longTailKeywords) ? seo.longTailKeywords : [],\n    tags,\n    hashtags,\n    thumbnailText: thumbText,\n    thumbnailEmotion: thumbEmotion,\n    thumbnailLayout: thumbLayout,\n    ctrPrediction,\n    searchVolume: seo.searchVolume || 'medium',\n    competition: seo.competition || 'medium',\n    rankDifficulty: seo.rankDifficulty || 'medium',\n    seoScore,\n    packagingScore,\n    thumbnailScore,\n    titleScore: titleScore(titleA),\n    offerCoverageScore,\n    opsSimplicityScore,\n    optimizationNotes: seo.optimizationNotes || '',\n    suggestedPostingTime: seo.suggestedPostingTime || '',\n    relatedVideoIdeas,\n    sequelIdeas,\n    pinnedComment: oneLinkPinnedComment.slice(0, 350),\n    endScreenText,\n    thumbnailPromptCandidates: promptCandidates,\n    selectedThumbnailPrompt: promptCandidates[0].prompt,\n    oneLinkOfferLabel: offerLabel,\n    oneLinkOfferUrl: offerUrl,\n    oneLinkOfferUrlRaw: rawOfferUrl,\n    oneLinkOfferType: offerType,\n    oneLinkOfferCta: offerCta,\n    oneLinkOfferPageTitle,\n    offerSetupNeeded,\n    offerReadiness,\n    offerAngle: seo.offerAngle || '',\n    newsletterAngle: seo.newsletterAngle || '',\n    offerAssetPlan: assetPlan,\n    cashCowScore\n  }\n}];"
+      }
+    },
+    {
+      "id": "db12cd83-4dcb-4b52-95ba-be3085e77a9c",
+      "name": "Title + Truth Gate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const j = items[0].json || {};\nconst cfg = $('Channel Config').first().json;\n\nif (j.status !== 'READY_TO_RENDER' && j.status !== 'READY_FOR_SEO') return [{ json: j }];\n\nconst errors = [];\nconst normalize = (s='') => String(s).toLowerCase().replace(/[^a-z0-9\\s]/g,' ').replace(/\\s+/g,' ').trim();\nconst tokens = (s='') => new Set(normalize(s).split(' ').filter(w => w.length > 2));\nconst overlap = (a,b) => {\n  const A = tokens(a), B = tokens(b);\n  if (!A.size || !B.size) return 0;\n  let inter = 0;\n  for (const t of A) if (B.has(t)) inter++;\n  return inter / Math.max(A.size, B.size);\n};\n\nconst title = j.longVideoTitle || j.seoTitle || '';\nconst hook = j.longVideoHook || '';\nconst script = (j.longVideoScript || '').slice(0, 3000);\nconst titleLower = normalize(title);\nconst scriptLower = normalize(script);\n\nconst searchDemand = String(j.searchDemand || 'medium').toLowerCase();\nconst buyerIntent = String(j.buyerIntent || 'medium').toLowerCase();\nif (searchDemand === 'low') errors.push('Search demand too low');\nif (buyerIntent === 'low' && j.videoFormat === 'TOOL_COMPARISON') errors.push('Buyer intent too low for comparison');\nif (Number(j.evergreenScore || 0) < Number(cfg.minEvergreenScore || 7.0)) errors.push('Not evergreen enough');\nif (Number(j.followupPotential || 0) < Number(cfg.minFollowupPotential || 7.0)) errors.push('Low follow-up potential');\nif (Number(j.packagingScore || 0) < Number(cfg.minPackagingScore || 7.2)) errors.push('Packaging score too low');\nif (Number(j.thumbnailScore || 0) < Number(cfg.minThumbnailScore || 7.0)) errors.push('Thumbnail score too low');\nif (Number(j.titleScore || 0) < Number(cfg.minTitleScore || 7.2)) errors.push('Title score too low');\nif (Number(j.score || 0) < Number(cfg.minQualityGateScore || 7.5)) errors.push('Core topic score too low');\n\nconst pastTitles = Array.isArray(j.pastTitles) ? j.pastTitles.slice(0, 50) : [];\nconst maxSimilarity = Math.max(0, ...pastTitles.map(t => overlap(title, t)));\nif (maxSimilarity >= Number(cfg.duplicateTitleSimilarity || 0.45)) {\n  errors.push('Title too similar to past upload (' + maxSimilarity.toFixed(2) + ')');\n}\n\nconst pastHooks = Array.isArray(j.pastHooks) ? j.pastHooks.slice(0, 30) : [];\nconst hookSim = Math.max(0, ...pastHooks.map(h => overlap(hook, h)));\nif (hookSim >= 0.55) errors.push('Hook too similar to recent video');\n\nconst titleKeywords = [...tokens(title)];\nlet titleWordsInScript = 0;\nfor (const w of titleKeywords) if (scriptLower.includes(w)) titleWordsInScript++;\nconst titleTruthScore = titleKeywords.length ? titleWordsInScript / titleKeywords.length : 1;\nif (titleTruthScore < 0.4) errors.push('Title claim not well supported in script');\n\nif (/(you wont believe|insane|crazy|shocking|secret hack|guaranteed|overnight)/i.test(title) || /(you wont believe|insane|crazy|shocking|secret hack|guaranteed|overnight)/i.test(hook)) {\n  errors.push('Title or hook uses misleading language');\n}\n\nif (cfg.affiliateCapEnabled) {\n  const recentPublished = Array.isArray(j.recentPublished) ? j.recentPublished : [];\n  const last3 = recentPublished.slice(0, 3);\n  const affCount = last3.filter(r =>\n    String(r.monetizationFit || '').toLowerCase() === 'affiliate' ||\n    String(r.contentLane || '').toLowerCase() === 'comparison'\n  ).length;\n  if (affCount >= Number(cfg.maxAffiliateVideosPerThree || 1) && j.videoFormat === 'TOOL_COMPARISON') {\n    errors.push('Affiliate cap reached \u2014 switch this topic to tutorial angle');\n  }\n}\n\nif (errors.length > 0) {\n  return [{ json: {\n    ...j,\n    status: 'TRUTH_GATE_FAILED',\n    errorStep: 'Title + Truth Gate',\n    errorMessage: errors.join('; '),\n    needsIntervention: false,\n    titleTruthScore: Number(titleTruthScore.toFixed(2)),\n    timestamp: new Date().toISOString()\n  }}];\n}\n\nreturn [{ json: { ...j, truthGatePassed: true, titleTruthScore: Number(titleTruthScore.toFixed(2)) } }];\n"
+      }
+    },
+    {
+      "id": "43afab73-cc5f-4d0f-82d9-e4e909a58cf3",
+      "name": "Authenticity + Cash Gate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        760,
+        520
+      ],
+      "parameters": {
+        "jsCode": "const j = items[0].json || {};\nconst cfg = $('Channel Config').first().json || {};\n\nif (j.status !== 'READY_TO_RENDER') return [{ json: j }];\n\nconst script = String(j.longVideoScript || '');\nconst description = String(j.description || '');\nconst title = String(j.longVideoTitle || '');\nconst hook = String(j.longVideoHook || '');\nconst opening = script.split(/\\s+/).slice(0, 130).join(' ');\n\nconst concreteSignals = [\n  /\\bfor example\\b/i,\n  /\\bexample\\b/i,\n  /\\bstep 1\\b/i,\n  /\\bsetup\\b/i,\n  /\\bworkflow\\b/i,\n  /\\bminutes?\\b/i,\n  /\\$\\d+/,\n  /\\bcompare\\b/i\n].filter(rx => rx.test(script + ' ' + hook + ' ' + title)).length;\n\nconst openingSignals = [\n  /\\bhere is\\b/i,\n  /\\bthis video\\b/i,\n  /\\bin \\d+ minutes?\\b/i,\n  /\\bvs\\b/i,\n  /\\bfree\\b/i,\n  /\\bstop doing\\b/i,\n  /\\bautomate\\b/i,\n  /\\bworth it\\b/i\n].filter(rx => rx.test(hook + ' ' + opening + ' ' + title)).length;\nconst nicheSignals = [\n  /contractor|salon|cleaner|med spa|realtor|plumber|electrician|roof(er|ing)|agency/i,\n  /replace|cheaper|free alternative|stop paying|stack/i,\n  /\\$\\d+|hours? per week|subscriptions?/i\n].filter(rx => rx.test(title + ' ' + hook + ' ' + opening + ' ' + script)).length;\n\nconst downsideSignals = /(downside|limitation|tradeoff|not for everyone|skip this if|drawback|only worth it if)/i.test(script + ' ' + hook + ' ' + (j.whyThisWillWork || ''));\nconst urlMatches = [...new Set((description.match(/https?:\\/\\/\\S+/g) || []).map(s => s.replace(/[)\\],.]+$/, '')))];\nconst oneLinkOnly = urlMatches.length <= 1;\nconst hasOfferLink = Boolean(j.oneLinkOfferUrl && !String(j.oneLinkOfferUrl).includes('PASTE_'));\nconst repeatedSentences = (() => {\n  const sentences = script.split(/[.!?]\\s+/).map(s => s.trim().toLowerCase()).filter(s => s.length > 30);\n  const seen = new Set();\n  let dupes = 0;\n  for (const s of sentences) {\n    const key = s.slice(0, 80);\n    if (seen.has(key)) dupes++;\n    seen.add(key);\n  }\n  return dupes;\n})();\n\nconst authenticityHeuristic = Math.max(0, Math.min(10, Number((\n  (\n    (Number(j.authenticityScore || 7.8) * 0.45) +\n    (concreteSignals >= 3 ? 1.6 : concreteSignals >= 2 ? 1.0 : 0.25) +\n    (downsideSignals ? 1.1 : 0) +\n    (nicheSignals >= 2 ? 0.9 : nicheSignals >= 1 ? 0.4 : 0) +\n    (oneLinkOnly ? 0.5 : -0.7) -\n    (repeatedSentences > 2 ? 0.8 : 0)\n  ).toFixed(1)\n))));\n\nconst openingQualityScore = Math.max(0, Math.min(10, Number((\n  (\n    (Number(j.titleScore || 7.5) * 0.24) +\n    (openingSignals >= 3 ? 3.3 : openingSignals >= 2 ? 2.5 : openingSignals >= 1 ? 1.5 : 0.5) +\n    (nicheSignals >= 2 ? 1.0 : nicheSignals >= 1 ? 0.5 : 0) +\n    (/^(here|if|stop|i|this|replace)\\b/i.test(hook.trim()) ? 1.0 : 0.4) +\n    (/\\b(cheaper|free|replace|stack|stop paying)\\b/i.test(opening + ' ' + hook) ? 1.3 : 0.5)\n  ).toFixed(1)\n))));\n\nconst offerCoverageScore = Math.max(0, Math.min(10, Number((\n  (Number(j.offerCoverageScore || (hasOfferLink ? 9 : 5)) * 0.75) +\n  (hasOfferLink ? 1.2 : 0) +\n  (oneLinkOnly ? 0.5 : -0.5)\n).toFixed(1))));\n\nconst opsSimplicityScore = Math.max(0, Math.min(10, Number((\n  (Number(j.opsSimplicityScore || 8.0) * 0.70) +\n  (oneLinkOnly ? 0.9 : -0.8) +\n  (repeatedSentences === 0 ? 0.6 : repeatedSentences <= 2 ? 0.2 : -0.6)\n).toFixed(1))));\n\nconst errors = [];\nif (concreteSignals < 2) errors.push('Needs at least one concrete example and clearer setup details');\nif (!downsideSignals) errors.push('Add one honest downside or tradeoff');\nif (!oneLinkOnly) errors.push('Description should carry one clear next step, not multiple links');\nif (authenticityHeuristic < Number(cfg.minAuthenticityScore || 7.5)) errors.push('Authenticity heuristic too low');\nif (openingQualityScore < Number(cfg.minOpeningQualityScore || 7.4)) errors.push('Opening 30-second quality too low');\nif (offerCoverageScore < Number(cfg.minOfferCoverageScore || 6.8)) errors.push('Offer coverage too weak for a cash-focused upload');\n\nconst finalBusinessScore = Math.min(10, Number(((\n  Number(j.cashCowScore || 7.5) * 0.42 +\n  Number(j.buyerIntentScore || 7.0) * 0.10 +\n  Number(j.firstDollarScore || 7.0) * 0.10 +\n  Number(j.audienceOwnershipScore || 7.0) * 0.08 +\n  authenticityHeuristic * 0.10 +\n  Number(j.sequelDepthScore || 7.5) * 0.05 +\n  openingQualityScore * 0.08 +\n  offerCoverageScore * 0.04 +\n  opsSimplicityScore * 0.03\n)).toFixed(1)));\n\nif (finalBusinessScore < Number(cfg.minCashCowScore || 7.8)) errors.push('Final business score below target');\nif (opsSimplicityScore < Number(cfg.minOpsSimplicityScore || 7.2)) errors.push('Workflow simplicity score below target');\n\nif (errors.length) {\n  return [{\n    json: {\n      ...j,\n      status: 'TRUTH_GATE_FAILED',\n      errorStep: 'Authenticity + Cash Gate',\n      errorMessage: errors.join('; '),\n      authenticityHeuristic,\n      openingQualityScore,\n      offerCoverageScore,\n      opsSimplicityScore,\n      finalBusinessScore,\n      needsIntervention: false,\n      timestamp: new Date().toISOString()\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    ...j,\n    authenticityGatePassed: true,\n    authenticityHeuristic,\n    openingQualityScore,\n    offerCoverageScore,\n    opsSimplicityScore,\n    finalBusinessScore,\n    businessSummary: `Cash score ${finalBusinessScore}/10 | opening ${openingQualityScore}/10 | buyer intent ${j.buyerIntentScore || 0}/10`,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      }
+    },
+    {
+      "id": "c4113f08-e138-4beb-986b-dc8df28ad9a8",
+      "name": "Status Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [
+        800,
+        400
+      ],
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.status }}",
+        "rules": {
+          "rules": [
+            {
+              "conditions": [
+                {
+                  "value1": "={{ $json.status }}",
+                  "value2": "READY_TO_RENDER",
+                  "operation": "equals"
+                }
+              ]
+            },
+            {
+              "conditions": [
+                {
+                  "value1": "={{ $json.status }}",
+                  "value2": "SCORE_TOO_LOW",
+                  "operation": "equals"
+                }
+              ]
+            },
+            {
+              "conditions": [
+                {
+                  "value1": "={{ $json.status }}",
+                  "value2": "DUPLICATE_TOPIC",
+                  "operation": "equals"
+                }
+              ]
+            },
+            {
+              "conditions": [
+                {
+                  "value1": "={{ $json.status }}",
+                  "value2": "PARSE_FAILED",
+                  "operation": "equals"
+                }
+              ]
+            },
+            {
+              "conditions": [
+                {
+                  "value1": "={{ $json.status }}",
+                  "value2": "VALIDATION_FAILED",
+                  "operation": "equals"
+                }
+              ]
+            },
+            {
+              "conditions": [
+                {
+                  "value1": "={{ $json.status }}",
+                  "value2": "CONFIG_FAILED",
+                  "operation": "equals"
+                }
+              ]
+            },
+            {
+              "conditions": [
+                {
+                  "value1": "={{ $json.status }}",
+                  "value2": "TRUTH_GATE_FAILED",
+                  "operation": "equals"
+                }
+              ]
+            }
+          ]
+        },
+        "fallbackOutput": "extra"
+      }
+    },
+    {
+      "id": "765db59d-f0fb-41e3-95df-84a9c16f8fc9",
+      "name": "Render Failed \u2192 Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2040,
+        500
+      ],
+      "parameters": {
+        "jsCode": "return [{json:{...items[0].json, status:'RENDER_FAILED', errorStep:'Fliki', errorMessage:'Render failed', needsIntervention:true, timestamp:new Date().toISOString()}}];\n"
+      }
+    },
+    {
+      "id": "54503d99-e54d-4d11-b8d9-ea7dc2dbebf0",
+      "name": "Log Error",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1080,
+        660
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": "={{ $('Channel Config').first().json.googleSheetId }}",
+        "sheetName": "={{ $('Channel Config').first().json.sheetDeadLetters || $('Channel Config').first().json.sheetErrors || 'Errors' }}",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ new Date().toISOString() }}",
+            "runId": "={{ $json.runId }}",
+            "status": "={{ $json.status }}",
+            "errorStep": "={{ $json.errorStep }}",
+            "errorMessage": "={{ ($json.errorMessage||'').slice(0,1000) }}",
+            "topic": "={{ $json.topic }}",
+            "needsIntervention": "={{ $json.needsIntervention }}",
+            "channelName": "={{ $json.channelName }}",
+            "lockKey": "={{ $json.lockKey }}",
+            "workflowPackVersion": "={{ $json.workflowPackVersion }}"
+          }
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "cbe08860-785d-4e40-8cac-b916b60eec46",
+      "name": "Slack Error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1320,
+        660
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Channel Config').first().json.slackWebhook }}",
+        "sendBody": true,
+        "jsonBody": "={{\n  {\n    blocks: [\n      {\n        type: 'header',\n        text: { type: 'plain_text', text: `\ud83d\udd34 Error: ${$json.errorStep || 'unknown'}` }\n      },\n      {\n        type: 'section',\n        text: { type: 'mrkdwn', text: ($json.errorMessage || 'Unknown').slice(0, 500) }\n      }\n    ]\n  }\n}}",
+        "options": {
+          "timeout": 10000
+        },
+        "bodyContentType": "json",
+        "contentType": "json"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "a306c557-224e-49cb-b509-41623bf61e3c",
+      "name": "Log Skip",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1080,
+        520
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": "={{ $('Channel Config').first().json.googleSheetId }}",
+        "sheetName": "={{ $('Channel Config').first().json.sheetDashboard }}",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ new Date().toISOString() }}",
+            "runId": "={{ $json.runId }}",
+            "status": "={{ $json.status }}",
+            "topic": "={{ $json.topic }}",
+            "score": "={{ $json.score }}",
+            "needsIntervention": "false",
+            "errorMessage": "={{ $json.errorMessage }}",
+            "selfAdjustment": "={{ $json.selfAdjustment }}",
+            "channelName": "={{ $json.channelName }}",
+            "lockKey": "={{ $json.lockKey }}",
+            "workflowPackVersion": "={{ $json.workflowPackVersion }}"
+          }
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "47a73575-c3a4-42d3-b70c-ecdb6b8426fd",
+      "name": "Fliki Credit Budget Guard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const cfg = $('Channel Config').first().json;\nconst j = items[0].json || {};\nconst monthlyLimit = Number(cfg.flikiMonthlyCredits || 600);\nconst warningThreshold = Number(cfg.flikiCreditWarningThreshold || 480);\n\nlet monthCreditsUsed = 0;\nconst thisMonth = new Date().toISOString().slice(0, 7);\ntry {\n  const rows = $('Load Past Videos').all().map(i => i.json);\n  const thisMonthRows = rows.filter(r => String(r.date || r.Date || '').startsWith(thisMonth));\n  for (const r of thisMonthRows) {\n    const status = String(r.status || r.Status || '').toUpperCase();\n    if (status === 'PUBLISHED' || status === 'RENDERED') {\n      const type = String(r.runType || r.videoFormat || r.VideoFormat || '');\n      if (type.includes('COMPARISON') || type.includes('MONEY')) monthCreditsUsed += Number(cfg.estimatedCreditsPerLongVideo || 10);\n      else if (type.includes('REVIEW') || type.includes('AUTHORITY')) monthCreditsUsed += Number(cfg.estimatedCreditsPerLongVideo || 10);\n      if (String(r.shortTitle || r.ShortTitle || '').trim()) monthCreditsUsed += Number(cfg.estimatedCreditsPerShort || 1.25);\n    }\n  }\n} catch(e) {}\n\nconst remaining = monthlyLimit - monthCreditsUsed;\nconst nearLimit = monthCreditsUsed >= warningThreshold;\nconst reserve = Number(cfg.reserveCreditsForWinners || 80);\nconst confidence = Number(j.packagingScore || j.score || 0);\nconst minConfidence = Number(cfg.minConfidenceToSpendCredits || 7.8);\n\nif (remaining <= 0) {\n  return [{ json: { ...j, status:'BUDGET_EXCEEDED', errorStep:'Budget Guard', errorMessage:`Fliki credits exhausted: ${monthCreditsUsed}/${monthlyLimit}`, needsIntervention:true, budgetUsed:monthCreditsUsed, budgetRemaining:remaining } }];\n}\n\nif (nearLimit && remaining <= reserve && confidence < minConfidence) {\n  return [{ json: { ...j, status:'BUDGET_HOLD', skipVideoRender:true, errorStep:'Budget Guard', errorMessage:`Holding low-confidence render to preserve remaining credits (${remaining}) for stronger videos.`, needsIntervention:false, budgetUsed:monthCreditsUsed, budgetRemaining:remaining, budgetWarning:true } }];\n}\n\nreturn [{ json: { ...j, budgetUsed:monthCreditsUsed, budgetRemaining:remaining, budgetWarning:nearLimit, budgetOk:true } }];\n"
+      }
+    },
+    {
+      "id": "049e9604-c75a-4377-b586-0159caa3701f",
+      "name": "Pattern Engine",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const cfg = $('Channel Config').first().json;\nconst intel = $('Competitive Intelligence + Owner Notes Engine').first().json;\n\nfunction weightedPick(entries, fallback = []) {\n  if (!entries.length) return fallback[Math.floor(Math.random() * Math.max(fallback.length, 1))] || null;\n  const exploit = Number(cfg.winnerPatternShare || 0.7);\n  const secondary = Number(cfg.secondaryPatternShare || 0.2);\n  const experiment = Number(cfg.experimentPatternShare || 0.1);\n  const roll = Math.random();\n  const sorted = [...entries].sort((a,b) => (b.weightedScore || 0) - (a.weightedScore || 0));\n  if (roll <= exploit && sorted[0]) return sorted[0];\n  if (roll <= exploit + secondary && sorted[1]) return sorted[1];\n  const pool = sorted.slice(2);\n  if (pool.length) return pool[Math.floor(Math.random() * pool.length)];\n  return sorted[0] || null;\n}\n\nconst hookWinner = weightedPick(intel.bestHookTypes || [], []);\nconst formatWinner = weightedPick(intel.bestFormatFamilies || [], []);\nconst laneWinner = weightedPick(intel.bestContentLanes || [], []);\nconst titleStarterWinner = weightedPick(intel.bestTitleStarters || [], []);\n\nconst hookType = hookWinner?.key || (cfg.hookLibrary?.[0] || 'RESULT_FIRST').split(':')[0];\nconst selectedHook = (cfg.hookLibrary || []).find(h => h.startsWith(hookType + ':')) || cfg.hookLibrary?.[0] || 'RESULT_FIRST: Start with the result.';\nconst selectedFormat = formatWinner?.key || (cfg.runType === 'MONEY_VIDEO' ? 'head-to-head comparison' : 'step-by-step walkthrough');\nconst contentLane = laneWinner?.key || (cfg.contentLanes || [])[0] || '';\nconst titleStarter = titleStarterWinner?.key || (cfg.preferredTitleStarters || [])[0] || '';\nconst expectedCtr = hookWinner?.avgCtr || 4.0;\nconst expectedRetention = formatWinner?.avgRetention || 36.0;\n\nconst reasonChosen = [\n  hookWinner ? `Hook ${hookType} is a current winner` : `Hook ${hookType} chosen as fallback`,\n  formatWinner ? `Format ${selectedFormat} has worked historically` : `Format ${selectedFormat} chosen from run type`,\n  laneWinner ? `Lane ${contentLane} is in a strong pocket` : `Lane ${contentLane} chosen from config`\n].join('; ');\n\nreturn [{\n  json: {\n    ...items[0].json,\n    hookType,\n    selectedHook,\n    selectedFormat,\n    contentLane,\n    preferredTitleStarter: titleStarter,\n    expectedCtrBucket: expectedCtr >= 5 ? 'HIGH' : expectedCtr >= 3.5 ? 'MEDIUM' : 'LOW',\n    expectedRetentionBucket: expectedRetention >= 42 ? 'HIGH' : expectedRetention >= 32 ? 'MEDIUM' : 'LOW',\n    expectedCtr,\n    expectedRetention,\n    reasonChosen,\n    patternEngineActive: true\n  }\n}];\n"
+      }
+    },
+    {
+      "id": "3869bd6c-1833-4545-b57d-bf142991f334",
+      "name": "Thumbnail Variant Engine",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        980,
+        120
+      ],
+      "parameters": {
+        "jsCode": "const j = items[0].json || {};\nconst candidates = Array.isArray(j.thumbnailPromptCandidates) ? j.thumbnailPromptCandidates : [];\nif (!candidates.length) {\n  const fallback = {\n    label: 'A',\n    angle: 'fallback',\n    score: 7.5,\n    prompt: j.selectedThumbnailPrompt || j.thumbnailPrompt || `YouTube thumbnail for ${j.longVideoTitle || j.topic || 'video'}. High contrast, no faces, clear object focus.`\n  };\n  return [{ json: { ...j, thumbnailPromptCandidates: [fallback], selectedThumbnailPrompt: fallback.prompt, selectedThumbnailVariantLabel: fallback.label, selectedThumbnailAngle: fallback.angle } }];\n}\nconst best = [...candidates].sort((a,b) => (b.score || 0) - (a.score || 0))[0];\nreturn [{ json: { ...j, selectedThumbnailPrompt: best.prompt, selectedThumbnailVariantLabel: best.label, selectedThumbnailAngle: best.angle, selectedThumbnailScore: best.score } }];\n"
+      }
+    },
+    {
+      "id": "ebde1101-5cbc-4861-84f3-de784ea73a8b",
+      "name": "Generate AI Thumbnail",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1080,
+        120
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://image.pollinations.ai/prompt/{{ encodeURIComponent(($json.selectedThumbnailPrompt || $json.thumbnailPrompt || ('YouTube thumbnail for ' + ($json.longVideoTitle || $json.topic || 'video') + '. High contrast, clean layout, no faces')).slice(0, 900)) }}?width=1280&height=720&nologo=true",
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "responseFormat": "file"
+          }
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "9d76548f-3dd1-4af7-aadc-023d73ac1ae6",
+      "name": "Package Thumbnail",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        120
+      ],
+      "parameters": {
+        "jsCode": "const pkg = $('Apply SEO + Build Package').first().json;\nconst hasBinary = !!(items[0].binary && Object.keys(items[0].binary).length);\nreturn [{\n  json: {\n    ...pkg,\n    thumbnailGenerated: hasBinary,\n    thumbnailError: hasBinary ? '' : 'No thumbnail binary returned; using platform fallback.',\n    selectedThumbnailVariantLabel: pkg.selectedThumbnailVariantLabel || 'A'\n  },\n  binary: items[0].binary || {}\n}];\n"
+      }
+    },
+    {
+      "id": "d120ebf5-ad99-4b9c-a93a-b3187678b0e4",
+      "name": "Render or Shorts Only?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1380,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Route: skip render for drafts, weekends, shorts-only\nconst j = items[0].json;\nconst isDraft = j.runType === 'DRAFT_MINING' || j.skipPublicUpload;\nconst skip = j.skipVideoRender || j.runType === 'SKIP_DAY' || isDraft;\n\nif (isDraft && j.status === 'READY_TO_RENDER') {\n  // Log as draft instead of rendering\n  return [{ json: {\n    ...j,\n    skipVideoRender: true,\n    renderPath: 'DRAFT_LOGGED',\n    status: 'DRAFT_SAVED',\n    draftSavedAt: new Date().toISOString()\n  }}];\n}\n\nreturn [{ json: {\n  ...j,\n  skipVideoRender: skip,\n  renderPath: skip ? 'SKIP' : 'FULL_VIDEO'\n}}];"
+      }
+    },
+    {
+      "id": "6a4fcb0f-d4ee-44e8-95b8-46417ba04170",
+      "name": "Fliki Create Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1500,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.fliki.ai/v1/generate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Channel Config').first().json.flikiApiKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{\n  {\n    script: $json.longVideoScript || '',\n    settings: {\n      name: ($json.seoTitle || $json.longVideoTitle || 'AI Tools').slice(0, 100),\n      format: 'landscape',\n      resolution: '1080p',\n      voice: 'ultra',\n      language: 'en-US',\n      subtitles: true,\n      music: true,\n      useStockMedia: true,\n      generateAiVideo: false,\n      duration: $json.runType === 'MONEY_VIDEO' ? 240 : 540\n    }\n  }\n}}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 20000
+    },
+    {
+      "id": "0451b91e-5d72-4030-811c-e6cf4c1ff34d",
+      "name": "Poll Fliki Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1740,
+        200
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.fliki.ai/v1/generate/{{ $json.id || $json.data?.id || $json.jobId || '' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Channel Config').first().json.flikiApiKey }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "a860d2e6-94a1-4471-93f7-29af6c5f09bb",
+      "name": "Get Fliki Video URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        200
+      ],
+      "parameters": {
+        "jsCode": "// Extract video download URL from Fliki response\nconst prev = items[0].json;\nconst downloadUrl = prev.videoUrl || prev.video_url || prev.data?.videoUrl || prev.data?.video_url || prev.url || prev.output?.url || '';\nconst config = $('Channel Config').first().json;\n\nreturn [{ json: {\n  ...prev,\n  videoDownloadUrl: downloadUrl,\n  flikiComplete: !!downloadUrl,\n  longVideoTitle: prev.seoTitle || prev.longVideoTitle || prev.topic || 'AI Tools',\n  longVideoDescription: prev.seoDescription || '',\n  longVideoTags: prev.seoTags || '',\n  channelUrl: config.channelUrl || '',\n  youtubeChannelId: config.youtubeChannelId || ''\n}}];\n"
+      }
+    },
+    {
+      "id": "b3f50c0c-ead7-4625-b7ef-cb3a21f06bb4",
+      "name": "Download Long Video Binary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2100,
+        200
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.videoDownloadUrl }}",
+        "options": {
+          "timeout": 180000,
+          "response": {
+            "responseFormat": "file"
+          }
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 10000
+    },
+    {
+      "id": "b08fbd1e-e2af-4383-a936-8b42731e004c",
+      "name": "YouTube Upload Long",
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [
+        2220,
+        200
+      ],
+      "parameters": {
+        "resource": "video",
+        "operation": "upload",
+        "title": "={{ $json.longVideoTitle || $json.seoTitle || $json.topic }}",
+        "description": "={{ $json.description || $json.seoDescription || '' }}",
+        "options": {
+          "privacyStatus": "public",
+          "tags": "={{ Array.isArray($json.tags) ? $json.tags.join(',') : ($json.seoTags || '') }}"
+        },
+        "inputBinaryField": "data",
+        "regionCode": "US",
+        "categoryId": "28"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "e6dc0a93-259d-4394-8805-a5f011676a79",
+      "name": "Capture Video ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2700,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const prev = items[0].json || {};\nconst videoId = prev.id || prev.videoId || prev.data?.id || '';\nconst videoUrl = videoId ? 'https://youtube.com/watch?v=' + videoId : '';\nlet thumbBinary = {};\ntry { thumbBinary = $('Package Thumbnail').first().binary || {}; } catch(e) {}\nreturn [{\n  json: {\n    ...prev,\n    youtubeVideoId: videoId,\n    youtubeVideoUrl: videoUrl,\n    publishedAt: prev.publishedAt || new Date().toISOString()\n  },\n  binary: thumbBinary\n}];\n"
+      }
+    },
+    {
+      "id": "ee9246e6-28fc-4091-8e70-b37c098bcbac",
+      "name": "Post Pinned Comment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2520,
+        180
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.googleapis.com/youtube/v3/commentThreads?part=snippet",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "sendBody": true,
+        "jsonBody": "={{\n  {\n    snippet: {\n      videoId: $json.youtubeVideoId,\n      topLevelComment: {\n        snippet: {\n          textOriginal: $json.pinnedComment || 'What question should the next video answer?'\n        }\n      }\n    }\n  }\n}}",
+        "options": {
+          "timeout": 15000
+        },
+        "bodyContentType": "json",
+        "contentType": "json"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "1bcd1ce8-3285-4a18-9eaa-e1f791156bf3",
+      "name": "Set YouTube Thumbnail",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2520,
+        120
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://www.googleapis.com/upload/youtube/v3/thumbnails/set?videoId=' + $('Capture Video ID').first().json.youtubeVideoId + '&uploadType=media' }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "image/png"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "042229d8-5cbb-4574-9b6b-3390faaa8e11",
+      "name": "Log to Dashboard",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        2760,
+        180
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": "={{ $('Channel Config').first().json.googleSheetId }}",
+        "sheetName": "={{ $('Channel Config').first().json.sheetDashboard }}",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ $json.publishedAt||new Date().toISOString() }}",
+            "runId": "={{ $json.runId }}",
+            "status": "={{ $json.status }}",
+            "topic": "={{ $json.topic }}",
+            "title": "={{ $json.longVideoTitle }}",
+            "score": "={{ $json.score }}",
+            "buyerIntent": "={{ $json.buyerIntent }}",
+            "youtubeUrl": "={{ $json.youtubeVideoUrl }}",
+            "youtubeVideoId": "={{ $json.youtubeVideoId }}",
+            "seoScore": "={{ $json.seoScore }}",
+            "ctrPrediction": "={{ $json.ctrPrediction }}",
+            "primaryKeyword": "={{ $json.primaryKeyword }}",
+            "searchVolume": "={{ $json.searchVolume }}",
+            "competition": "={{ $json.competition }}",
+            "rankDifficulty": "={{ $json.rankDifficulty }}",
+            "thumbnailText": "={{ $json.thumbnailText }}",
+            "thumbnailPrompt": "={{ ($json.thumbnailPrompt||'').slice(0,500) }}",
+            "pinnedComment": "={{ ($json.pinnedComment||'').slice(0,300) }}",
+            "competitorGap": "={{ $json.competitorGap }}",
+            "relatedVideoIdeas": "={{ ($json.relatedVideoIdeas||[]).join(' | ') }}",
+            "ownerNotesApplied": "={{ $json.ownerNotesCount||0 }}",
+            "selfAdjustment": "={{ $json.selfAdjustment }}",
+            "winTrend": "={{ $json.winTrend }}",
+            "cashCowScore": "={{ $json.cashCowScore }}",
+            "finalBusinessScore": "={{ $json.finalBusinessScore }}",
+            "buyerIntentScore": "={{ $json.buyerIntentScore }}",
+            "firstDollarScore": "={{ $json.firstDollarScore }}",
+            "audienceOwnershipScore": "={{ $json.audienceOwnershipScore }}",
+            "authenticityScore": "={{ $json.authenticityHeuristic || $json.authenticityScore }}",
+            "sequelDepthScore": "={{ $json.sequelDepthScore }}",
+            "sponsorSafetyScore": "={{ $json.sponsorSafetyScore }}",
+            "oneLinkOfferLabel": "={{ $json.oneLinkOfferLabel }}",
+            "oneLinkOfferUrl": "={{ $json.oneLinkOfferUrl }}",
+            "monetizationFit": "={{ $json.monetizationFit }}",
+            "channelName": "={{ $json.channelName }}",
+            "topicFamily": "={{ $json.topicFamily || $json.sequelFamily || $json.primaryKeyword }}",
+            "lockKey": "={{ $json.lockKey }}",
+            "workflowPackVersion": "={{ $json.workflowPackVersion }}"
+          }
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "433eec39-ea1d-434c-82f9-3d463674c4ad",
+      "name": "Slack Success + SEO Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        3000,
+        180
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Channel Config').first().json.slackWebhook }}",
+        "sendBody": true,
+        "jsonBody": "    ={{\n      {\n        blocks: [\n          {\n            type: 'header',\n            text: { type: 'plain_text', text: `\u2705 Video #${(($('Competitive Intelligence + Owner Notes Engine').first().json.pastVideoCount || 0) + 1)} Published` }\n          },\n          {\n            type: 'section',\n            fields: [\n              { type: 'mrkdwn', text: `*Title:*\\n${($json.longVideoTitle || '').slice(0, 80)}` },\n              { type: 'mrkdwn', text: `*Score:* ${$json.score || 'n/a'}/10 | *SEO:* ${$json.seoScore || 'n/a'}/10` },\n              { type: 'mrkdwn', text: `*Keyword:*\\n${$json.primaryKeyword || '\u2014'}` },\n              { type: 'mrkdwn', text: `*Rank:* ${$json.rankDifficulty || '\u2014'} | *CTR:* ${$json.ctrPrediction || '\u2014'}%` }\n            ]\n          },\n          {\n            type: 'section',\n            text: {\n              type: 'mrkdwn',\n              text: `*Gap:* ${($json.competitorGap || '\u2014').slice(0, 200)}\n*Thumbnail:* ${$json.thumbnailText || '\u2014'} (${ $json.thumbnailColors || ''})\n*Owner Notes Applied:* ${$json.ownerNotesCount || 0}\n*Win Trend:* ${$json.winTrend || '\u2014'}${$json.selfAdjustment ? '\\n\u26a1 ' + $json.selfAdjustment : ''}`\n            }\n          },\n          {\n            type: 'section',\n            text: {\n              type: 'mrkdwn',\n              text: $json.youtubeVideoUrl ? `<${$json.youtubeVideoUrl}|Watch>` : 'pending'\n            }\n          }\n        ]\n      }\n    }}",
+        "options": {
+          "timeout": 10000
+        },
+        "bodyContentType": "json",
+        "contentType": "json"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "f7fd0969-3301-4592-865f-25b4ad3d251a",
+      "name": "Build 1 Short",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2040,
+        380
+      ],
+      "parameters": {
+        "jsCode": "// Build 1 Short (TOS-safe: low volume, high quality)\nconst j = items[0].json;\nconst shorts = Array.isArray(j.shorts) ? j.shorts : [];\nif (!shorts.length) {\n  // Generate a short from the long-form topic\n  return [{ json: {\n    ...j,\n    shortTitle: ((j.longVideoTitle || j.topic || 'Cheaper software tip').replace(/\\s+#?shorts?/ig,'')).slice(0,72) + ' #shorts',\n    shortHook: (j.longVideoHook || 'Quick tip:').slice(0, 180),\n    shortScript: (j.longVideoScript || '').slice(0, 500),\n    shortIndex: 1,\n    totalShorts: 1\n  }}];\n}\nconst best = shorts[0];\nreturn [{ json: {\n  ...j,\n  shortTitle: (best.title || j.topic || 'AI Tip').slice(0, 80) + ' #shorts',\n  shortHook: (best.hook || '').slice(0, 180),\n  shortScript: (best.script || '').slice(0, 1200),\n  shortIndex: 1,\n  totalShorts: 1\n}}];\n"
+      }
+    },
+    {
+      "id": "83ef69fc-46e1-46cc-80cc-a629d6cc5415",
+      "name": "Fliki Render Short",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2280,
+        480
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.fliki.ai/v1/generate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Channel Config').first().json.flikiApiKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{\n  {\n    script: $json.shortScript || $json.shortHook || '',\n    settings: {\n      name: ($json.shortTitle || 'Short').slice(0, 80),\n      format: 'portrait',\n      resolution: '1080p',\n      voice: 'standard',\n      language: 'en-US',\n      subtitles: true,\n      music: true,\n      useStockMedia: true,\n      generateAiVideo: false,\n      duration: 60\n    }\n  }\n}}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "bddb8c4b-f4ba-4611-85ed-9c93b2357ae1",
+      "name": "Poll Short Fliki Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        480
+      ],
+      "parameters": {
+        "jsCode": "const run = async () => {\n  const cfg = $('Channel Config').first().json;\n  const input = $input.first().json || {};\n  const renderId = input.id || input.data?.id || input.jobId || '';\n  if (!renderId) throw new Error('No Fliki short render id');\n\n  const maxChecks = 22;\n  let waitMs = 15000;\n  let last = null;\n\n  for (let i = 0; i < maxChecks; i++) {\n    await new Promise((resolve) => setTimeout(resolve, waitMs));\n\n    const res = await $http.request({\n      method: 'GET',\n      url: `https://api.fliki.ai/v1/generate/${renderId}`,\n      headers: {\n        Authorization: `Bearer ${cfg.flikiApiKey}`,\n      },\n    });\n\n    last = res;\n    const url =\n      res.videoUrl ||\n      res.video_url ||\n      res.data?.videoUrl ||\n      res.data?.video_url ||\n      res.url ||\n      res.output?.url ||\n      '';\n\n    if (url) {\n      return [\n        {\n          json: {\n            ...input,\n            ...res,\n            videoDownloadUrl: url,\n            flikiComplete: true,\n            renderId,\n          },\n        },\n      ];\n    }\n\n    if (String(res.status || '').toLowerCase().includes('fail')) {\n      throw new Error('Fliki short failed');\n    }\n\n    waitMs = Math.min(25000, waitMs + 2000);\n  }\n\n  throw new Error(`Fliki short timeout for render ${renderId}. Last status: ${JSON.stringify(last || {})}`);\n};\n\nreturn run();"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "444db24a-5f02-4276-8695-d6a5eff96cd3",
+      "name": "Download Short Video Binary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2600,
+        480
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.videoDownloadUrl }}",
+        "options": {
+          "timeout": 120000,
+          "response": {
+            "responseFormat": "file"
+          }
+        }
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 10000
+    },
+    {
+      "id": "943698c6-b819-4f8c-bbcd-ade6f039a34f",
+      "name": "YouTube Upload Short",
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [
+        2280,
+        380
+      ],
+      "parameters": {
+        "resource": "video",
+        "operation": "upload",
+        "title": "={{ (($json.shortTitle || 'Quick AI Tip') + ' #Shorts').slice(0, 100) }}",
+        "regionCode": "US",
+        "categoryId": "22",
+        "inputBinaryField": "data",
+        "options": {
+          "description": "={{ $json.shortHook + '\\n\\nFull breakdown: ' + ($json.channelUrl||'') + '\\n\\n' + ($json.hashtags||[]).slice(0,3).join(' ') }}",
+          "privacyStatus": "public"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "10bef015-87dc-4727-be51-028928b14f63",
+      "name": "Social Reach Gate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3000,
+        480
+      ],
+      "parameters": {
+        "jsCode": "const cfg = $('Channel Config').first().json;\nconst j = items[0].json;\nif (!cfg.enableCrossPost) return [];\nif (!j.crossPostVideoUrl && !j.videoDownloadUrl) return [];\n\n// CHANGE 9: Only cross-post winners\nconst score = Number(j.score || 0);\nconst minScore = Number(cfg.socialMinScore || 8.5);\nconst trust = Number(j.trustScore || 0);\nconst minTrust = Number(cfg.socialMinTrustScore || 8.0);\n\nif (cfg.socialOnlyForWinners && score < minScore) return [];\nif (trust > 0 && trust < minTrust) return [];\n\nreturn [{ json: { ...j, socialGate: 'pass', crossPostVideoUrl: j.crossPostVideoUrl || j.videoDownloadUrl || '' }}];"
+      }
+    },
+    {
+      "id": "5d6e093d-c7e2-481b-88b4-67e84f53895f",
+      "name": "Generate Social Captions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2520,
+        380
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Channel Config').first().json.groqApiKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={{\n  {\n    model: $('Channel Config').first().json.groqModel || 'llama-3.3-70b-versatile',\n    messages: [\n      {\n        role: 'system',\n        content: 'You write platform-native captions for a faceless software/AI channel. Return ONLY valid JSON with keys tiktok, instagram, facebook, linkedin, twitter. Each key must contain caption and hashtags. Keep TikTok concise, Instagram value-dense, Facebook conversational, LinkedIn professional, and Twitter/X punchy.'\n      },\n      {\n        role: 'user',\n        content: `Video topic: ${$json.topic || $json.selectedTopic || 'local business software'}\nVideo title: ${$json.longVideoTitle || $json.shortTitle || 'AI Tools'}\nHook: ${$json.longVideoHook || $json.shortHook || ''}\nYouTube URL: ${$json.youtubeVideoUrl || $json.channelUrl || ''}\nNiche: ${$json.niche || 'AI tools and cheaper software for local service businesses'}\nShort index: ${$json.shortIndex || 1} of 3\n\nReturn JSON only.`\n      }\n    ],\n    temperature: 0.7,\n    max_tokens: 1500\n  }\n}}",
+        "options": {
+          "timeout": 30000
+        },
+        "bodyContentType": "json",
+        "contentType": "json",
+        "jsCode": ""
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000
+    },
+    {
+      "id": "18aab04f-a538-4133-8c56-efe8722899c5",
+      "name": "Parse Social Captions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2760,
+        380
+      ],
+      "parameters": {
+        "jsCode": "// \u2500\u2500 Parse social captions and build per-platform payloads \u2500\u2500\nconst j = items[0].json;\nconst prev = (() => { try { return $('YouTube Upload Short').first().json; } catch(e) { return $('Build 1 Short').first().json; } })();\nconst cfg = $('Channel Config').first().json;\n\nlet captions = {};\ntry {\n  const raw = j.choices?.[0]?.message?.content || '';\n  captions = JSON.parse(raw.replace(/```json|```/g, '').trim());\n} catch(e) {\n  const topic = prev.topic || prev.shortTitle || 'AI tools';\n  const url = prev.youtubeVideoUrl || prev.channelUrl || '';\n  captions = {\n    tiktok: { caption: `This changes everything. Full breakdown on YouTube. ${url}`, hashtags: '#AItools #SmallBusiness #TechTok #Productivity #AI' },\n    instagram: { caption: `Stop wasting time on tasks AI can do for free.\\n\\nFull breakdown on my YouTube (link in bio).`, hashtags: '#AItools #SmallBusiness #Productivity #Automation #AI #Tech #FreeTool #BusinessTips' },\n    facebook: { caption: `Have you tried using AI tools for your business? Full video: ${url}`, hashtags: '#AItools #SmallBusiness #Productivity' },\n  };\n}\n\n// Build the video URL for cross-posting\nconst videoUrl = prev.shortVideoUrl || prev.videoUrl || '';\n\nreturn [{ json: {\n  ...prev,\n  socialCaptions: captions,\n  tiktokCaption: (captions.tiktok?.caption || '') + '\\n' + (captions.tiktok?.hashtags || ''),\n  instagramCaption: (captions.instagram?.caption || '') + '\\n\\n' + (captions.instagram?.hashtags || ''),\n  facebookCaption: (captions.facebook?.caption || '') + '\\n' + (captions.facebook?.hashtags || ''),\n  crossPostVideoUrl: videoUrl,\n  socialReady: true\n}}];\n"
+      }
+    },
+    {
+      "id": "7aa22a99-db54-4064-98d8-be209e718ab7",
+      "name": "Upload-Post \u2192 All Platforms",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        3000,
+        380
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.upload-post.com/api/upload",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Apikey ' + $('Channel Config').first().json.uploadPostApiKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={{\n  {\n    video_url: $json.crossPostVideoUrl || '',\n    title: ($json.shortTitle || $json.longVideoTitle || 'AI Tools').slice(0, 150),\n    platform: $('Channel Config').first().json.socialPlatforms || ['tiktok','instagram','facebook'],\n    description: ($json.tiktokCaption || $json.shortHook || '').slice(0, 2200),\n    tiktok_title: ($json.tiktokCaption || '').slice(0, 150),\n    instagram_caption: ($json.instagramCaption || '').slice(0, 2200),\n    facebook_description: ($json.facebookCaption || '').slice(0, 1000),\n    linkedin_caption: ($json.linkedinCaption || '').slice(0, 2200),\n    twitter_caption: ($json.twitterCaption || '').slice(0, 280),\n    schedule: 'now'\n  }\n}}",
+        "options": {
+          "timeout": 120000
+        },
+        "bodyContentType": "json",
+        "contentType": "json"
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 10000
+    },
+    {
+      "id": "ebcc3a5e-fdf1-4513-b955-5b93dc82e3e2",
+      "name": "Poll Upload-Post Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3600,
+        480
+      ],
+      "parameters": {
+        "jsCode": "const run = async () => {\n  const cfg = $('Channel Config').first().json;\n  const input = $input.first().json || {};\n  const requestId = input.request_id || input.requestId || '';\n\n  if (!requestId) {\n    return [\n      {\n        json: {\n          ...input,\n          uploadPostStatus: input.status || 'submitted',\n        },\n      },\n    ];\n  }\n\n  let last = null;\n\n  for (let i = 0; i < 15; i++) {\n    await new Promise((resolve) => setTimeout(resolve, 15000));\n\n    const res = await $http.request({\n      method: 'GET',\n      url: `https://api.upload-post.com/api/uploadposts/status?request_id=${encodeURIComponent(requestId)}`,\n      headers: {\n        Authorization: `Apikey ${cfg.uploadPostApiKey}`,\n      },\n    });\n\n    last = res;\n    const status = String(res.status || '').toLowerCase();\n\n    if (status === 'completed') {\n      return [\n        {\n          json: {\n            ...input,\n            uploadPostStatus: 'completed',\n            uploadPostResults: res.results || {},\n          },\n        },\n      ];\n    }\n\n    if (status === 'failed') {\n      return [\n        {\n          json: {\n            ...input,\n            uploadPostStatus: 'failed',\n          },\n        },\n      ];\n    }\n  }\n\n  return [\n    {\n      json: {\n        ...input,\n        uploadPostStatus: String(last?.status || 'timeout'),\n      },\n    },\n  ];\n};\n\nreturn run();"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "951afd6a-ff74-4c45-b90d-d22d8fc4b4a3",
+      "name": "Log Social Status",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        3240,
+        380
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": "={{ $('Channel Config').first().json.googleSheetId }}",
+        "sheetName": "Social Posts",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ new Date().toISOString().slice(0,10) }}",
+            "topic": "={{ $json.topic || $json.shortTitle || '' }}",
+            "shortIndex": "={{ $json.shortIndex || 1 }}",
+            "youtubeUrl": "={{ $json.youtubeVideoUrl || '' }}",
+            "uploadPostStatus": "={{ $('Upload-Post \u2192 All Platforms').first().json.status || $('Upload-Post \u2192 All Platforms').first().json.message || 'sent' }}",
+            "platforms": "tiktok, instagram, facebook, linkedin, twitter",
+            "tiktokCaption": "={{ ($json.tiktokCaption || '').slice(0, 300) }}",
+            "instagramCaption": "={{ ($json.instagramCaption || '').slice(0, 300) }}",
+            "facebookCaption": "={{ ($json.facebookCaption || '').slice(0, 300) }}",
+            "linkedinCaption": "={{ ($json.linkedinCaption || '').slice(0, 300) }}",
+            "twitterCaption": "={{ ($json.twitterCaption || '').slice(0, 280) }}"
+          }
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "6fa6b5a6-b9ea-4d64-ad6d-56beacba7c20",
+      "name": "Slack Social Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        3480,
+        380
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Channel Config').first().json.slackWebhook }}",
+        "sendBody": true,
+        "jsonBody": "        ={{\n          {\n            blocks: [\n              {\n                type: 'header',\n                text: { type: 'plain_text', text: `\ud83d\udcf1 Distributed to Platforms \u2014 Short ${$json.shortIndex || '?'} / 3` }\n              },\n              {\n                type: 'section',\n                text: {\n                  type: 'mrkdwn',\n                  text: `*Topic:* ${($json.topic || $json.shortTitle || '').slice(0, 100)}\n*Platforms:* TikTok, Instagram, Facebook, LinkedIn, X\n*Via:* Upload-Post\n*Status:* ${$('Upload-Post \u2192 All Platforms').first().json.status || 'sent'}`\n                }\n              },\n              {\n                type: 'section',\n                text: {\n                  type: 'mrkdwn',\n                  text: '_One API call. Multi-platform distribution with per-platform captions._'\n                }\n              }\n            ]\n          }\n        }}",
+        "options": {
+          "timeout": 10000
+        },
+        "bodyContentType": "json",
+        "contentType": "json"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "5222118a-729f-4f68-8e82-ec422d5de19d",
+      "name": "Load Cross-Channel Registry",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        930,
+        650
+      ],
+      "parameters": {
+        "operation": "read",
+        "documentId": "={{ $('Channel Config').first().json.googleSheetId }}",
+        "sheetName": "={{ $('Channel Config').first().json.sheetCrossChannelRegistry || 'Cross-Channel Registry' }}",
+        "options": {
+          "returnAll": true
+        }
+      }
+    },
+    {
+      "id": "94c44e0e-14a9-4188-b8ef-d0b34e75b9b3",
+      "name": "Cross-Channel Dedupe Gate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1180,
+        650
+      ],
+      "parameters": {
+        "jsCode": "const j = $('Authenticity + Cash Gate').first().json || {};\nif (j.status !== 'READY_TO_RENDER') return [{ json: j }];\n\nconst rows = $input.all().map(i => i.json || {});\nconst now = new Date();\nconst cfg = $('Channel Config').first().json || {};\nconst horizon = Number(cfg.dedupeWindowDays || 10);\nconst norm = (s='') => String(s || '').toLowerCase().replace(/[^a-z0-9\\s]/g,' ').replace(/\\s+/g,' ').trim();\nconst toks = s => new Set(norm(s).split(' ').filter(w => w.length > 2));\nconst overlap = (a,b) => {\n  const A=toks(a), B=toks(b);\n  if (!A.size || !B.size) return 0;\n  let hit=0;\n  for (const t of A) if (B.has(t)) hit++;\n  return hit / Math.max(A.size, B.size);\n};\n\nconst currentFamily = String(j.topicFamily || j.sequelFamily || j.primaryKeyword || j.topic || '');\nconst currentTitle = String(j.longVideoTitle || '');\nconst currentKeyword = String(j.primaryKeyword || j.topic || '');\nconst currentChannel = String(j.channelName || '');\n\nlet duplicate = null;\nfor (const row of rows) {\n  const rowDate = row.date || row.publishedAt || row.createdAt;\n  if (!rowDate) continue;\n  const days = (now - new Date(rowDate)) / 86400000;\n  if (isNaN(days) || days > horizon) continue;\n  const rowChannel = String(row.channelName || '');\n  if (!rowChannel || rowChannel === currentChannel) continue;\n\n  const familyHit = currentFamily && String(row.topicFamily || row.sequelFamily || row.primaryKeyword || '').toLowerCase() === currentFamily.toLowerCase();\n  const keywordHit = currentKeyword && String(row.primaryKeyword || row.topic || '').toLowerCase() === currentKeyword.toLowerCase();\n  const titleSim = overlap(currentTitle, row.title || row.longVideoTitle || '');\n  const topicSim = overlap(currentFamily + ' ' + currentKeyword, String(row.topicFamily || '') + ' ' + String(row.primaryKeyword || row.topic || ''));\n\n  if (familyHit || keywordHit || titleSim >= 0.62 || topicSim >= 0.72) {\n    duplicate = { rowChannel, rowDate, title: row.title || row.longVideoTitle || '', titleSim: Number(titleSim.toFixed(2)), topicSim: Number(topicSim.toFixed(2)) };\n    break;\n  }\n}\n\nif (duplicate) {\n  return [{\n    json: {\n      ...j,\n      status: 'DUPLICATE_TOPIC',\n      errorStep: 'Cross-Channel Dedupe Gate',\n      errorMessage: `Too similar to recent ${duplicate.rowChannel} upload: ${duplicate.title}`.slice(0, 500),\n      duplicateCrossChannel: true,\n      duplicateWithChannel: duplicate.rowChannel,\n      duplicateWithTitle: duplicate.title,\n      duplicateTitleSimilarity: duplicate.titleSim,\n      duplicateTopicSimilarity: duplicate.topicSim\n    }\n  }];\n}\n\nreturn [{ json: { ...j, crossChannelCheckPassed: true } }];"
+      }
+    },
+    {
+      "id": "73dcbd15-32e2-474b-8bb7-8126982decda",
+      "name": "Register Cross-Channel Publish",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        3000,
+        80
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": "={{ $('Channel Config').first().json.googleSheetId }}",
+        "sheetName": "={{ $('Channel Config').first().json.sheetCrossChannelRegistry || 'Cross-Channel Registry' }}",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ $json.publishedAt || new Date().toISOString() }}",
+            "channelName": "={{ $json.channelName }}",
+            "runId": "={{ $json.runId }}",
+            "status": "={{ $json.status }}",
+            "title": "={{ $json.longVideoTitle }}",
+            "topic": "={{ $json.topic }}",
+            "topicFamily": "={{ $json.topicFamily || $json.sequelFamily || $json.primaryKeyword }}",
+            "primaryKeyword": "={{ $json.primaryKeyword }}",
+            "contentLane": "={{ $json.contentLane }}",
+            "youtubeVideoId": "={{ $json.youtubeVideoId }}",
+            "youtubeUrl": "={{ $json.youtubeVideoUrl }}",
+            "lockKey": "={{ $json.lockKey }}",
+            "workflowPackVersion": "={{ $json.workflowPackVersion }}"
+          }
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Channel Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Channel Config": {
+      "main": [
+        [
+          {
+            "node": "Validate Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Config": {
+      "main": [
+        [
+          {
+            "node": "Config OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config OK?": {
+      "main": [
+        [
+          {
+            "node": "Load Past Videos",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Load Owner Notes",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Config Fail \u2192 Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config Fail \u2192 Log": {
+      "main": [
+        [
+          {
+            "node": "Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Past Videos": {
+      "main": [
+        [
+          {
+            "node": "Merge Past Data + Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Owner Notes": {
+      "main": [
+        [
+          {
+            "node": "Merge Past Data + Notes",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Competitive Intelligence + Owner Notes Engine": {
+      "main": [
+        [
+          {
+            "node": "Research + Score + Script (1 Call)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Research + Score + Script (1 Call)": {
+      "main": [
+        [
+          {
+            "node": "Parse + Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse + Validate": {
+      "main": [
+        [
+          {
+            "node": "SEO + Keywords Optimizer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SEO + Keywords Optimizer": {
+      "main": [
+        [
+          {
+            "node": "Apply SEO + Build Package",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply SEO + Build Package": {
+      "main": [
+        [
+          {
+            "node": "Title + Truth Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status Router": {
+      "main": [
+        [
+          {
+            "node": "Render or Shorts Only?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Skip",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Render Failed \u2192 Error",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "YouTube Upload Long": {
+      "main": [
+        [
+          {
+            "node": "Capture Video ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Capture Video ID": {
+      "main": [
+        [
+          {
+            "node": "Log to Dashboard",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Post Pinned Comment",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Set YouTube Thumbnail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Pinned Comment": {
+      "main": [
+        [
+          {
+            "node": "Log to Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Dashboard": {
+      "main": [
+        [
+          {
+            "node": "Register Cross-Channel Publish",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YouTube Upload Short": {
+      "main": [
+        [
+          {
+            "node": "Social Reach Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Social Captions": {
+      "main": [
+        [
+          {
+            "node": "Parse Social Captions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Social Captions": {
+      "main": [
+        [
+          {
+            "node": "Upload-Post \u2192 All Platforms",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload-Post \u2192 All Platforms": {
+      "main": [
+        [
+          {
+            "node": "Poll Upload-Post Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack Social Report": {
+      "main": [
+        []
+      ]
+    },
+    "Log Error": {
+      "main": [
+        [
+          {
+            "node": "Slack Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack Error": {
+      "main": [
+        []
+      ]
+    },
+    "Render Failed \u2192 Error": {
+      "main": [
+        [
+          {
+            "node": "Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Skip": {
+      "main": [
+        []
+      ]
+    },
+    "Slack Success + SEO Report": {
+      "main": [
+        []
+      ]
+    },
+    "Generate AI Thumbnail": {
+      "main": [
+        [
+          {
+            "node": "Package Thumbnail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Package Thumbnail": {
+      "main": [
+        []
+      ]
+    },
+    "Set YouTube Thumbnail": {
+      "main": [
+        []
+      ]
+    },
+    "Render or Shorts Only?": {
+      "main": [
+        [
+          {
+            "node": "Fliki Credit Budget Guard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fliki Create Video": {
+      "main": [
+        [
+          {
+            "node": "Poll Fliki Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poll Fliki Status": {
+      "main": [
+        [
+          {
+            "node": "Get Fliki Video URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Fliki Video URL": {
+      "main": [
+        [
+          {
+            "node": "Download Long Video Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fliki Render Short": {
+      "main": [
+        [
+          {
+            "node": "Poll Short Fliki Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fliki Credit Budget Guard": {
+      "main": [
+        [
+          {
+            "node": "Pattern Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pattern Engine": {
+      "main": [
+        [
+          {
+            "node": "Fliki Create Video",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build 1 Short",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Thumbnail Variant Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build 1 Short": {
+      "main": [
+        [
+          {
+            "node": "Fliki Render Short",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Long Video Binary": {
+      "main": [
+        [
+          {
+            "node": "YouTube Upload Long",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poll Short Fliki Status": {
+      "main": [
+        [
+          {
+            "node": "Download Short Video Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Short Video Binary": {
+      "main": [
+        [
+          {
+            "node": "YouTube Upload Short",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Past Data + Notes": {
+      "main": [
+        [
+          {
+            "node": "Competitive Intelligence + Owner Notes Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Title + Truth Gate": {
+      "main": [
+        [
+          {
+            "node": "Authenticity + Cash Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Social Status": {
+      "main": [
+        [
+          {
+            "node": "Slack Social Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Social Reach Gate": {
+      "main": [
+        [
+          {
+            "node": "Generate Social Captions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poll Upload-Post Status": {
+      "main": [
+        [
+          {
+            "node": "Log Social Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Thumbnail Variant Engine": {
+      "main": [
+        [
+          {
+            "node": "Generate AI Thumbnail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Authenticity + Cash Gate": {
+      "main": [
+        [
+          {
+            "node": "Load Cross-Channel Registry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Cross-Channel Registry": {
+      "main": [
+        [
+          {
+            "node": "Cross-Channel Dedupe Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cross-Channel Dedupe Gate": {
+      "main": [
+        [
+          {
+            "node": "Status Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Register Cross-Channel Publish": {
+      "main": [
+        [
+          {
+            "node": "Slack Success + SEO Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "35e642ec-a5a3-4990-995e-a71145caf4bc"
+}

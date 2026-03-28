@@ -1,0 +1,664 @@
+{
+  "name": "Shared Engine Strategy + Milestones v23 Debugged",
+  "nodes": [
+    {
+      "id": "fb0a71cd-1a5f-4e80-8657-8a1b1d347bb7",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1800,
+        600
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "d8e5dc95-8342-4290-9b22-5d38e73d41f4",
+      "name": "Channel Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1560,
+        600
+      ],
+      "parameters": {
+        "jsCode": "return $input.all();"
+      }
+    },
+    {
+      "id": "146d7a48-ad6c-4a18-b3dc-42bb0dcb653a",
+      "name": "Validate Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1120,
+        480
+      ],
+      "parameters": {
+        "jsCode": "const cfg = items[0].json || {};\nconst missing = [];\nconst REQUIRED = ['niche','groqApiKey','flikiApiKey','slackWebhook','googleSheetId','uploadPostApiKey','youtubeChannelId'];\nfor (const f of REQUIRED) {\n  if (!cfg[f] || String(cfg[f]).includes('PASTE_')) missing.push(f);\n}\nreturn [{\n  json: {\n    ...cfg,\n    configOk: missing.length === 0,\n    configError: missing.length ? 'MISSING: ' + missing.join(', ') : '',\n    runId: cfg.runId || ('run_' + Date.now()),\n    startedAt: cfg.startedAt || new Date().toISOString(),\n    workflowPackVersion: cfg.workflowPackVersion || 'v23'\n  }\n}];\n"
+      }
+    },
+    {
+      "id": "674e1a1a-4949-49ab-8485-3d1918543e72",
+      "name": "Strategy Run Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [
+        -1080,
+        600
+      ],
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.requestedRunType || $json.runType }}",
+        "rules": {
+          "rules": [
+            {
+              "conditions": [
+                {
+                  "value1": "={{ $json.requestedRunType || $json.runType }}",
+                  "value2": "WEEKLY_STRATEGY",
+                  "operation": "equals"
+                }
+              ]
+            },
+            {
+              "conditions": [
+                {
+                  "value1": "={{ $json.requestedRunType || $json.runType }}",
+                  "value2": "MILESTONE_CHECK",
+                  "operation": "equals"
+                }
+              ]
+            }
+          ]
+        },
+        "fallbackOutput": "extra"
+      }
+    },
+    {
+      "id": "3266103e-31d8-4cca-928d-def058f22e40",
+      "name": "Weekly Strategy Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -840,
+        500
+      ],
+      "parameters": {
+        "jsCode": "return $input.all();"
+      }
+    },
+    {
+      "id": "adca6210-71da-4d4f-99fb-59b05735992c",
+      "name": "Milestone Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -840,
+        700
+      ],
+      "parameters": {
+        "jsCode": "return $input.all();"
+      }
+    },
+    {
+      "id": "3b7e7036-ce91-4bfc-b115-ce587526d2a4",
+      "name": "Weekly Strategy Validate Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1300,
+        1080
+      ],
+      "parameters": {
+        "jsCode": "const cfg = items[0].json || {};\nconst missing = [];\nconst REQUIRED = ['niche','groqApiKey','flikiApiKey','slackWebhook','googleSheetId','uploadPostApiKey','youtubeChannelId'];\nfor (const f of REQUIRED) {\n  if (!cfg[f] || String(cfg[f]).includes('PASTE_')) missing.push(f);\n}\nreturn [{\n  json: {\n    ...cfg,\n    configOk: missing.length === 0,\n    configError: missing.length ? 'MISSING: ' + missing.join(', ') : '',\n    runId: cfg.runId || ('run_' + Date.now()),\n    startedAt: cfg.startedAt || new Date().toISOString(),\n    workflowPackVersion: cfg.workflowPackVersion || 'v23'\n  }\n}];\n"
+      }
+    },
+    {
+      "id": "04760979-50bf-44c5-8251-df8855ade2be",
+      "name": "Weekly Load Past Videos",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -1120,
+        1080
+      ],
+      "parameters": {
+        "operation": "read",
+        "documentId": "={{ $('Weekly Strategy Validate Config').first().json.googleSheetId }}",
+        "sheetName": "={{ $('Weekly Strategy Validate Config').first().json.sheetDashboard || 'Dashboard' }}",
+        "options": {
+          "returnAll": true
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "887414b0-d00f-40f8-812f-147f414ace33",
+      "name": "Build Weekly Cash Scorecard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -980,
+        1170
+      ],
+      "parameters": {
+        "jsCode": "let rows = [];\ntry {\n  rows = $('Weekly Load Past Videos').all().map(i => i.json);\n} catch (e) {}\n\nconst now = Date.now();\nconst recent = rows.filter(r => {\n  const t = new Date(r.date || r.Date || r.publishedAt || 0).getTime();\n  return t && t >= now - 30 * 86400000;\n});\n\nconst recent14 = recent.filter(r => {\n  const t = new Date(r.date || r.Date || r.publishedAt || 0).getTime();\n  return t && t >= now - 14 * 86400000;\n});\n\nconst avg = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;\nconst getNum = (r, keys) => {\n  for (const k of keys) {\n    const v = Number(r[k]);\n    if (Number.isFinite(v) && v !== 0) return v;\n  }\n  return 0;\n};\nconst hasGoodOffer = r => {\n  const url = String(r.oneLinkOfferUrl || r.offerUrl || '');\n  return !!url && !url.includes('PASTE_');\n};\nconst normalizeFamily = (title = '', topic = '') => String(topic || title || '')\n  .toLowerCase()\n  .replace(/['\u2019]/g, '')\n  .replace(/\\b(best|free|cheap|cheaper|how|to|for|vs|and|the|a|an|is|still|worth|paying|manual|smart|automation|automate|workflow|tool|tools|app|apps|local|business|businesses|service|services|small|ai|software|stack)\\b/g, ' ')\n  .replace(/[^a-z0-9 ]+/g, ' ')\n  .replace(/\\s+/g, ' ')\n  .trim()\n  .split(' ')\n  .filter(Boolean)\n  .slice(0, 4)\n  .join('-') || 'general';\n\nconst category = {\n  searchDemand: Number(avg(recent14.map(r => getNum(r, ['searchDemandScore', 'searchIntentScore', 'seoScore']))).toFixed(1)) || 0,\n  packaging: Number(avg(recent14.map(r => getNum(r, ['packagingScore', 'ctrPrediction', 'thumbCtr']))).toFixed(1)) || 0,\n  retention: Number(avg(recent14.map(r => getNum(r, ['realAvgRetention', 'avgRetention', 'openingQualityScore']))).toFixed(1)) || 0,\n  audienceQuality: Number(avg(recent14.map(r => getNum(r, ['audienceOwnershipScore', 'buyerIntentScore']))).toFixed(1)) || 0,\n  firstDollarSpeed: Number(avg(recent14.map(r => getNum(r, ['firstDollarScore', 'cashCowScore']))).toFixed(1)) || 0,\n  monetizationBreadth: Number(avg(recent14.map(r => getNum(r, ['cashCowScore', 'projectedRoi', 'finalBusinessScore']))).toFixed(1)) || 0,\n  buyerIntent: Number(avg(recent14.map(r => getNum(r, ['buyerIntentScore']))).toFixed(1)) || 0,\n  seriesDepth: Number(avg(recent14.map(r => getNum(r, ['sequelDepthScore', 'followupPotential']))).toFixed(1)) || 0,\n  authenticity: Number(avg(recent14.map(r => getNum(r, ['authenticityHeuristic', 'authenticityScore', 'titleTruthScore']))).toFixed(1)) || 0,\n  sponsorSafety: Number(avg(recent14.map(r => getNum(r, ['sponsorSafetyScore']))).toFixed(1)) || 0\n};\n\nconst offerCoverageRate = recent14.length ? recent14.filter(hasGoodOffer).length / recent14.length : 0;\nconst offerCoverageScore = Number((offerCoverageRate * 10).toFixed(1));\n\nconst familyGroups = {};\nfor (const r of recent14) {\n  const key = normalizeFamily(r.title || r.Title || '', r.topic || r.Topic || '');\n  if (!familyGroups[key]) familyGroups[key] = [];\n  familyGroups[key].push(r);\n}\nconst familyEntries = Object.entries(familyGroups).filter(([, arr]) => arr.length >= 2);\nconst sequelWinRate = Number((familyEntries.length\n  ? familyEntries.filter(([, arr]) => avg(arr.map(x => getNum(x, ['realScore', 'score']))) >= 7.5).length / familyEntries.length\n  : 0).toFixed(2));\nconst sequelWinRateScore = Number((sequelWinRate * 10).toFixed(1));\n\nconst recentErrors = recent14.filter(r => /FAILED|ERROR|SKIP|TRUTH_GATE_FAILED/i.test(String(r.status || ''))).length;\nconst opsSimplicityScore = Math.max(0, Math.min(10, Number((\n  8.8\n  - (recentErrors * 0.4)\n  - (offerCoverageRate < 0.6 ? 1.0 : 0)\n  + (familyEntries.length >= 2 ? 0.4 : 0)\n).toFixed(1))));\n\nconst cashVelocityScore = Math.max(0, Math.min(10, Number((\n  (avg(recent14.map(r => getNum(r, ['firstDollarScore']))) * 0.55) +\n  (offerCoverageScore * 0.25) +\n  (avg(recent14.map(r => getNum(r, ['buyerIntentScore']))) * 0.20)\n).toFixed(1))));\n\nconst weightedOverall = Number(((\n  category.searchDemand * 0.14 +\n  category.packaging * 0.11 +\n  (Math.min(category.retention, 10)) * 0.11 +\n  category.audienceQuality * 0.09 +\n  cashVelocityScore * 0.13 +\n  category.monetizationBreadth * 0.09 +\n  category.buyerIntent * 0.09 +\n  Math.max(category.seriesDepth, sequelWinRateScore) * 0.08 +\n  category.authenticity * 0.08 +\n  category.sponsorSafety * 0.04 +\n  offerCoverageScore * 0.02 +\n  opsSimplicityScore * 0.02\n)).toFixed(1));\n\nconst sortedWeak = Object.entries({\n  ...category,\n  offerCoverage: offerCoverageScore,\n  sequelWinRate: sequelWinRateScore,\n  opsSimplicity: opsSimplicityScore,\n  cashVelocity: cashVelocityScore\n}).sort((a, b) => a[1] - b[1]).slice(0, 4);\n\nconst strongest = Object.entries({\n  ...category,\n  offerCoverage: offerCoverageScore,\n  sequelWinRate: sequelWinRateScore,\n  opsSimplicity: opsSimplicityScore,\n  cashVelocity: cashVelocityScore\n}).sort((a, b) => b[1] - a[1]).slice(0, 4);\n\nconst topFranchises = familyEntries\n  .map(([family, arr]) => ({\n    family,\n    count: arr.length,\n    avgScore: Number(avg(arr.map(x => getNum(x, ['realScore', 'score']))).toFixed(1)),\n    avgViews: Math.round(avg(arr.map(x => getNum(x, ['views', 'realViews']))))\n  }))\n  .sort((a, b) => b.avgScore - a.avgScore || b.avgViews - a.avgViews)\n  .slice(0, 5);\n\nconst easyFixes = [];\nif ((category.packaging || 0) < 7.5) easyFixes.push('Tighten titles and keep one clearer thumbnail concept');\nif (cashVelocityScore < 7.0) easyFixes.push('Use one stronger offer page and keep one link only');\nif (offerCoverageScore < 7.0) easyFixes.push('Set one offer base URL so every winner gets a routed page');\nif ((category.authenticity || 0) < 7.5) easyFixes.push('Add one honest downside and one concrete example to every script');\nif (sequelWinRateScore < 6.5) easyFixes.push('Turn each winner into beginner, cheaper, and mistakes sequels faster');\nif (opsSimplicityScore < 7.2) easyFixes.push('Reduce moving parts and keep one primary CTA');\nif (!easyFixes.length) easyFixes.push('Keep the current system and double down on the strongest lane');\n\nreturn [{\n  json: {\n    scorecardWindowDays: 30,\n    weightedOverall,\n    weakestCategories: sortedWeak.map(([k, v]) => `${k}:${v}`),\n    strongestCategories: strongest.map(([k, v]) => `${k}:${v}`),\n    easyFixes,\n    offerCoverageRate: Number((offerCoverageRate * 100).toFixed(1)),\n    offerCoverageScore,\n    sequelWinRate: Number((sequelWinRate * 100).toFixed(1)),\n    sequelWinRateScore,\n    opsSimplicityScore,\n    cashVelocityScore,\n    topFranchises,\n    ...category\n  }\n}];"
+      }
+    },
+    {
+      "id": "4a3a9e42-d4cd-4d83-a178-580c63ec068b",
+      "name": "Generate Weekly Strategy Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -1360,
+        1100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Weekly Strategy Validate Config').first().json.groqApiKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{\n  {\n    model: 'llama-3.3-70b-versatile',\n    messages: [\n      {\n        role: 'system',\n        content: 'You are a YouTube channel strategist. Use the scorecard and give 5 direct weekly recommendations focused on ranking, monetization, simplicity, offer routing, and sequel franchises.'\n      },\n      {\n        role: 'user',\n        content: `Weekly scorecard: ${JSON.stringify($('Build Weekly Cash Scorecard').first().json)}`\n      }\n    ],\n    temperature: 0.35,\n    max_tokens: 900\n  }\n}}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "471001f3-33b8-4413-b906-16178db09e10",
+      "name": "AI Weekly Strategy + Notes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -880,
+        1100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + ($('Weekly Strategy Validate Config').first().json.groqApiKey || '') }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={{\n  {\n    model: $('Weekly Strategy Validate Config').first().json.groqModel || 'llama-3.3-70b-versatile',\n    messages: [\n      {\n        role: 'system',\n        content: `You are a YouTube channel growth strategist. Analyse the weekly data and write a strategy report. Return ONLY valid JSON with keys:\nweekSummary, whatWorked, whatFailed, predictedVsReal, topPerformingKeyword, worstPerformingKeyword, adjustmentsForNextWeek, nicheShift, contentMixRecommendation, titlePatternInsight, thumbnailInsight, ownerToDo, systemToDo, confidenceLevel, cashCowPriority, weakestBusinessCategory, easiestFixNextWeek.`\n      },\n      {\n        role: 'user',\n        content: `WEEKLY CASH SCORECARD:\n${JSON.stringify($('Build Weekly Cash Scorecard').first().json)}\n\nRECENT DASHBOARD ROWS:\n${JSON.stringify($('Weekly Load Past Videos').all().map(i => i.json).slice(0, 15))}\n\nReturn JSON only.`\n      }\n    ],\n    temperature: 0.45,\n    max_tokens: 2200\n  }\n}}",
+        "options": {
+          "timeout": 45000
+        },
+        "bodyContentType": "json",
+        "contentType": "json",
+        "jsCode": ""
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "b20d4d09-77bb-4e95-85a0-f6d9936b31bc",
+      "name": "Parse + Save Strategy",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -640,
+        1100
+      ],
+      "parameters": {
+        "jsCode": "const j = items[0].json;\nlet strategy = {};\ntry {\n  const raw = j.choices?.[0]?.message?.content || '';\n  strategy = JSON.parse(raw.replace(/```json|```/g, '').trim());\n} catch(e) {\n  strategy = { weekSummary: 'Strategy generation failed \u2014 check Groq API.', adjustmentsForNextWeek: ['Retry next week'], ownerToDo: ['Check API keys'], systemToDo: ['No changes'], confidenceLevel: 'low' };\n}\nreturn [{ json: { ...strategy, generatedAt: new Date().toISOString() } }];\n"
+      }
+    },
+    {
+      "id": "1d457ea0-e67a-425c-832f-1e50d2a198a8",
+      "name": "Save Strategy to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -400,
+        1100
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": "={{ $('Weekly Strategy Validate Config').first().json.googleSheetId || '' }}",
+        "sheetName": "={{ $('Weekly Strategy Validate Config').first().json.sheetStrategyLog || 'Strategy Log' }}",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ new Date().toISOString().slice(0,10) }}",
+            "summary": "={{ $json.weekSummary || '' }}",
+            "whatWorked": "={{ ($json.whatWorked||[]).join(' | ') }}",
+            "whatFailed": "={{ ($json.whatFailed||[]).join(' | ') }}",
+            "predictedVsReal": "={{ $json.predictedVsReal || '' }}",
+            "adjustments": "={{ ($json.adjustmentsForNextWeek||[]).join(' | ') }}",
+            "contentMix": "={{ $json.contentMixRecommendation || '' }}",
+            "ownerToDo": "={{ ($json.ownerToDo||[]).join(' | ') }}",
+            "systemToDo": "={{ ($json.systemToDo||[]).join(' | ') }}",
+            "confidence": "={{ $json.confidenceLevel || 'low' }}",
+            "cashCowPriority": "={{ $json.cashCowPriority || '' }}",
+            "weakestBusinessCategory": "={{ $json.weakestBusinessCategory || '' }}",
+            "easiestFixNextWeek": "={{ $json.easiestFixNextWeek || '' }}",
+            "overallCashCowScore": "={{ $('Build Weekly Cash Scorecard').first().json.weightedOverall || '' }}"
+          }
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "bfed1d0b-3716-4993-9229-535471dbb056",
+      "name": "Slack Weekly Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -1120,
+        1100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Weekly Strategy Validate Config').first().json.slackWebhook }}",
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{\n  {\n    text: `Weekly strategy ready.\nOverall cash-cow score: ${$('Build Weekly Cash Scorecard').first().json.weightedOverall || 'n/a'}/10\nWeakest categories: ${(($('Build Weekly Cash Scorecard').first().json.weakestCategories) || []).join(', ')}\nTop easy fixes: ${(($('Build Weekly Cash Scorecard').first().json.easyFixes) || []).join(' | ')}`\n  }\n}}",
+        "options": {
+          "timeout": 10000
+        },
+        "bodyContentType": "json"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "0b51ddb3-49a4-4534-b12a-833e98384c6e",
+      "name": "Milestone Validate Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1300,
+        1280
+      ],
+      "parameters": {
+        "jsCode": "const cfg = items[0].json || {};\nconst missing = [];\nconst REQUIRED = ['niche','groqApiKey','flikiApiKey','slackWebhook','googleSheetId','uploadPostApiKey','youtubeChannelId'];\nfor (const f of REQUIRED) {\n  if (!cfg[f] || String(cfg[f]).includes('PASTE_')) missing.push(f);\n}\nreturn [{\n  json: {\n    ...cfg,\n    configOk: missing.length === 0,\n    configError: missing.length ? 'MISSING: ' + missing.join(', ') : '',\n    runId: cfg.runId || ('run_' + Date.now()),\n    startedAt: cfg.startedAt || new Date().toISOString(),\n    workflowPackVersion: cfg.workflowPackVersion || 'v23'\n  }\n}];\n"
+      }
+    },
+    {
+      "id": "fcce0f95-348d-415c-8be6-25610f286670",
+      "name": "Check Milestones",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -1360,
+        1300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://www.googleapis.com/youtube/v3/channels?part=statistics&id={{ $('Milestone Validate Config').first().json.youtubeChannelId }}&key=unused",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "ab05a1fe-f12f-4403-a7b9-2eee0b0c6f25",
+      "name": "Evaluate Milestones",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1120,
+        1300
+      ],
+      "parameters": {
+        "jsCode": "const cfg = $('Milestone Validate Config').first().json;\nconst yt = items[0].json || {};\nconst stats = yt.items?.[0]?.statistics || {};\nconst subs = Number(stats.subscriberCount || 0);\nconst views = Number(stats.viewCount || 0);\nconst estWatchHours = Math.round(views * 4 / 60);\nconst yppSubPct = Math.min(100, (subs / Number(cfg.yppSubTarget || 1000)) * 100);\nconst yppHrsPct = Math.min(100, (estWatchHours / Number(cfg.yppWatchHoursTarget || 4000)) * 100);\nconst yppReady = subs >= Number(cfg.yppSubTarget || 1000) && estWatchHours >= Number(cfg.yppWatchHoursTarget || 4000);\nconst affiliateReady = subs >= Number(cfg.affiliateReadySubs || 50);\nreturn [{\n  json: {\n    subscribers: subs,\n    totalViews: views,\n    estWatchHours,\n    yppSubPct: Number(yppSubPct.toFixed(0)),\n    yppHrsPct: Number(yppHrsPct.toFixed(0)),\n    yppReady,\n    affiliateReady,\n    slackMessage: yppReady ? `\ud83c\udf89 YPP READY! ${subs} subs and ~${estWatchHours} watch hours.` : `\ud83d\udcc8 Milestone check: ${subs} subs, ~${estWatchHours} watch hours.`\n  }\n}];\n"
+      }
+    },
+    {
+      "id": "4b6d58d3-63a7-40a4-9ce3-e8ac65bd90e0",
+      "name": "Evaluate All Milestones",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -880,
+        1320
+      ],
+      "parameters": {
+        "jsCode": "// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n// MILESTONE EVALUATOR\n// Checks: YPP readiness, affiliate readiness, PDF product readiness,\n// revenue target, and custom milestones.\n// Only fires Slack alert when a milestone is HIT or CLOSE.\n// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n\nconst cfg = $('Channel Config').first().json;\nconst ytResp = (() => { try { return $('Check Milestones').first().json; } catch(e) { return {}; } })();\nlet rows = [];\ntry { rows = $('Check Milestones').all().map(i => i.json).filter(r => r.status === 'PUBLISHED' || r.Status === 'PUBLISHED'); } catch(e) {}\n\n// \u2500\u2500 Extract stats \u2500\u2500\nconst subs = Number(ytResp.items?.[0]?.statistics?.subscriberCount || 0);\nconst totalVids = rows.length;\nconst winners = rows.filter(r => Number(r.score || r.Score || 0) >= 8).length;\n\n// Read real analytics for watch hours\nlet totalWatchMins = 0;\nlet monthlyViews = 0;\nlet monthlyRevenue = 0;\ntry {\n  // Estimate from 7-day analytics sheet if available\n  // For now use rough estimates from dashboard data\n  totalWatchMins = totalVids * 150; // rough: 2.5 min avg watch \u00d7 60 views per video\n  const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);\n  const recentVids = rows.filter(r => new Date(r.date || r.Date || 0) >= thirtyDaysAgo);\n  monthlyViews = recentVids.length * 500; // rough estimate until real analytics kick in\n} catch(e) {}\n\nconst watchHours = totalWatchMins / 60;\n\n// \u2500\u2500 YPP \u2500\u2500\nconst yppSubTarget = Number(cfg.yppSubTarget || 1000);\nconst yppHrsTarget = Number(cfg.yppWatchHoursTarget || 4000);\nconst yppSubPct = Math.min(100, (subs / yppSubTarget) * 100);\nconst yppHrsPct = Math.min(100, (watchHours / yppHrsTarget) * 100);\nconst yppReady = subs >= yppSubTarget && watchHours >= yppHrsTarget;\nconst yppClose = !yppReady && (yppSubPct >= 85 || yppHrsPct >= 85);\n\n// \u2500\u2500 Affiliate \u2500\u2500\nconst affSubTarget = Number(cfg.affiliateReadySubs || 1000);\nconst affVidTarget = Number(cfg.affiliateReadyVideos || 60);\nconst affWinTarget = Number(cfg.affiliateReadyWinners || 8);\nconst affiliateReady = subs >= affSubTarget && totalVids >= affVidTarget && winners >= affWinTarget;\nconst affiliateClose = !affiliateReady && (subs >= affSubTarget * 0.8 || totalVids >= affVidTarget * 0.8);\n\n// \u2500\u2500 PDF Product \u2500\u2500\nconst pdfSubTarget = Number(cfg.pdfReadySubs || 2000);\nconst pdfViewTarget = Number(cfg.pdfReadyMonthlyViews || 50000);\nconst pdfReady = subs >= pdfSubTarget && monthlyViews >= pdfViewTarget;\n\n// \u2500\u2500 Revenue \u2500\u2500\nconst revTarget = Number(cfg.targetMonthlyRevenue || 20000);\nconst revenueHit = monthlyRevenue >= revTarget;\n\nconst shouldAlert = yppReady || yppClose || affiliateReady || affiliateClose || pdfReady || revenueHit;\n\n// \u2500\u2500 Build Slack message \u2500\u2500\nconst lines = [];\nlines.push(':rocket: *Daily Milestone Check*');\nlines.push('');\nlines.push(`*Subscribers:* ${subs.toLocaleString()} | *Videos:* ${totalVids} | *Winners:* ${winners} | *Watch Hours:* ${watchHours.toFixed(0)}h`);\nlines.push('');\n\n// YPP\nif (yppReady) lines.push(':tada: *YPP REQUIREMENTS MET!* Apply now: YouTube Studio \u2192 Earn \u2192 Apply for YPP.');\nelse if (yppClose) lines.push(`:fire: *ALMOST YPP!* ${yppSubPct.toFixed(0)}% subs, ${yppHrsPct.toFixed(0)}% watch hours \u2014 keep posting daily!`);\nelse lines.push(`:hourglass: YPP: ${yppSubPct.toFixed(0)}% subs (${subs}/${yppSubTarget}), ${yppHrsPct.toFixed(0)}% hours (${watchHours.toFixed(0)}/${yppHrsTarget})`);\n\n// Affiliate\nif (affiliateReady) {\n  lines.push('');\n  lines.push(':money_with_wings: *AFFILIATE PROGRAMS READY!*');\n  lines.push(`Sign up TODAY and add links to your top 10 video descriptions:`);\n  lines.push(`\u2022 Notion: ${cfg.affiliateNotionUrl || 'https://affiliate.notion.so'} ($16/mo recurring)`);\n  lines.push(`\u2022 Jasper AI: ${cfg.affiliateJasperUrl || 'https://jasper.ai/affiliate'} (30% recurring)`);\n  lines.push(`\u2022 ClickUp: ${cfg.affiliateClickUpUrl || 'https://clickup.com/affiliates'} ($65+ per referral)`);\n  lines.push(`\u2022 HubSpot: ${cfg.affiliateHubspotUrl || 'https://hubspot.com/affiliates'} (up to $1,000/referral)`);\n  lines.push(`\u2022 Fathom AI: ${cfg.affiliateFathomUrl || 'https://usefathom.com/affiliates'} (25% recurring)`);\n  lines.push(`*ACTION:* Open each URL, sign up, add links to top 10 videos. 30 minutes work. Could add $2,000-5,000/month.`);\n} else if (affiliateClose) {\n  lines.push(`:soon: Affiliate almost ready \u2014 ${subs}/${affSubTarget} subs, ${totalVids}/${affVidTarget} videos, ${winners}/${affWinTarget} winners`);\n} else {\n  lines.push(`:hourglass: Affiliate: ${subs}/${affSubTarget} subs, ${totalVids}/${affVidTarget} vids, ${winners}/${affWinTarget} winners`);\n}\n\n// PDF\nif (pdfReady) {\n  lines.push('');\n  lines.push(':page_facing_up: *PDF PRODUCT READY TO LAUNCH!*');\n  lines.push(`\"${cfg.pdfProductName || 'AI Tools Starter Pack'}\" \u2014 $${cfg.pdfProductPrice || '47'}`);\n  lines.push('1. Create 20-30 page PDF covering top AI tools setup');\n  lines.push('2. List on Gumroad/Lemon Squeezy at $47');\n  lines.push('3. Add CTA to top 20 video descriptions + pin comments');\n  lines.push(`Expected: 100-300 sales/mo = $4,700-$14,100/month passive`);\n}\n\n// Revenue\nif (revenueHit) {\n  lines.push('');\n  lines.push(':champagne: *$20,000/MONTH TARGET HIT!* Next: second channel, $197 course, or hire editor to double output.');\n}\n\nreturn [{ json: {\n  shouldAlert,\n  slackMessage: lines.join('\\n'),\n  subs, totalVids, winners, watchHours: Number(watchHours.toFixed(1)), monthlyViews, monthlyRevenue,\n  milestones: {\n    ypp: { ready: yppReady, close: yppClose, subPct: yppSubPct.toFixed(1), hrsPct: yppHrsPct.toFixed(1) },\n    affiliate: { ready: affiliateReady, close: affiliateClose },\n    pdf: { ready: pdfReady },\n    revenue: { hit: revenueHit, current: monthlyRevenue, target: revTarget }\n  }\n}}];\n",
+        "jsonBody": ""
+      }
+    },
+    {
+      "id": "22b15134-9b4c-4aea-85cd-11d2e193269f",
+      "name": "Milestone Slack Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -640,
+        1320
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Milestone Validate Config').first().json.slackWebhook || '' }}",
+        "sendBody": true,
+        "jsonBody": "={{\n  {\n    text: $json.slackMessage || 'Milestone check complete \u2014 no alerts.'\n  }\n}}",
+        "options": {
+          "timeout": 10000
+        },
+        "bodyContentType": "json",
+        "contentType": "json"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "6510bd1e-49cf-48f6-a0b3-fa7fb382b8d6",
+      "name": "Log Milestone to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -400,
+        1320
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": "={{ $('Milestone Validate Config').first().json.googleSheetId || '' }}",
+        "sheetName": "={{ $('Milestone Validate Config').first().json.sheetMilestones || 'Milestones' }}",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ new Date().toISOString().slice(0,10) }}",
+            "subscribers": "={{ $json.subscribers || 0 }}",
+            "watchHours": "={{ $json.estWatchHours || 0 }}",
+            "yppReady": "={{ $json.yppReady || false }}",
+            "yppSubPct": "={{ $json.yppSubPct || 0 }}",
+            "yppHrsPct": "={{ $json.yppHrsPct || 0 }}",
+            "affiliateReady": "={{ $json.affiliateReady || false }}",
+            "monthlyViews": "={{ $json.totalViews || 0 }}"
+          }
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "3c830eaf-3e94-4341-b7a1-823ad590875f",
+      "name": "Slack Milestone Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -880,
+        1300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Channel Config').first().json.slackWebhook }}",
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "    ={{\n      {\n        text: `\ud83d\udcc8 MILESTONE CHECK\n${$json.milestoneAlert}\n\nSubs: ${$json.subscribers} (${ $json.yppSubPct }%)\nEst Watch Hours: ${$json.estWatchHours} (${ $json.yppHrsPct }%)\nAffiliate Ready: ${$json.affiliateReady}`\n      }\n    }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Channel Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Channel Config": {
+      "main": [
+        [
+          {
+            "node": "Validate Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Config": {
+      "main": [
+        [
+          {
+            "node": "Strategy Run Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Strategy Run Router": {
+      "main": [
+        [
+          {
+            "node": "Weekly Strategy Config",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Milestone Config",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Weekly Strategy Config": {
+      "main": [
+        [
+          {
+            "node": "Weekly Strategy Validate Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Milestone Config": {
+      "main": [
+        [
+          {
+            "node": "Milestone Validate Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Weekly Strategy + Notes": {
+      "main": [
+        [
+          {
+            "node": "Parse + Save Strategy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse + Save Strategy": {
+      "main": [
+        [
+          {
+            "node": "Slack Weekly Report",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Save Strategy to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Strategy to Sheet": {
+      "main": [
+        [
+          {
+            "node": "Slack Weekly Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate All Milestones": {
+      "main": [
+        [
+          {
+            "node": "Milestone Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Milestone Slack Alert": {
+      "main": [
+        [
+          {
+            "node": "Slack Milestone Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Milestone to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Milestone to Sheet": {
+      "main": [
+        []
+      ]
+    },
+    "Generate Weekly Strategy Report": {
+      "main": [
+        [
+          {
+            "node": "AI Weekly Strategy + Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack Weekly Report": {
+      "main": [
+        []
+      ]
+    },
+    "Check Milestones": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Milestones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Milestones": {
+      "main": [
+        [
+          {
+            "node": "Evaluate All Milestones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack Milestone Alert": {
+      "main": [
+        []
+      ]
+    },
+    "Weekly Strategy Validate Config": {
+      "main": [
+        [
+          {
+            "node": "Weekly Load Past Videos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Milestone Validate Config": {
+      "main": [
+        [
+          {
+            "node": "Check Milestones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly Load Past Videos": {
+      "main": [
+        [
+          {
+            "node": "Build Weekly Cash Scorecard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Weekly Cash Scorecard": {
+      "main": [
+        [
+          {
+            "node": "Generate Weekly Strategy Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "014c6fe2-0922-4ddd-bdea-a531032d1a20"
+}

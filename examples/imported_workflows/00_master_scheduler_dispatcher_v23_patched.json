@@ -1,0 +1,549 @@
+{
+  "name": "Master Scheduler Dispatcher v23 Debugged",
+  "nodes": [
+    {
+      "id": "def5cf71-156b-468d-922d-f7722a2858e7",
+      "name": "Manual Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1600,
+        80
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "9245f8ec-88d4-48d5-a337-1072076f75d4",
+      "name": "Daily Content (10am weekdays)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1600,
+        220
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 10 * * 1-5"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "396acea3-a4d9-4188-9776-cfba7e1e3f3d",
+      "name": "Afternoon Draft Mining (3pm weekdays)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1600,
+        340
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 15 * * 1-5"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "b52867a9-f86a-40f8-b5a5-75e9a52177a7",
+      "name": "24-Hour Analytics (12pm daily)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1600,
+        460
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 12 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "0418154a-e8be-4984-9abc-1bed99b6eb38",
+      "name": "72-Hour Analytics (1pm daily)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1600,
+        580
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 13 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "97c843a8-0fe5-4a79-9098-3f3b710f0cdd",
+      "name": "7-Day Analytics (11am daily)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1600,
+        700
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 11 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "58c2f585-1b21-4435-9c1b-059d84bc4e67",
+      "name": "Weekly Strategy (Monday 9am)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1600,
+        820
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "df152f14-5a57-402c-ad67-59f054495bc9",
+      "name": "Milestone Check (9am daily)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1600,
+        940
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "bbccc145-74a0-481a-89b5-6e37d5423e26",
+      "name": "Manual Dispatch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1320,
+        80
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: { workflowPackVersion: 'v23', runType: 'CONTENT_DAILY', scheduledAt: new Date().toISOString(), schedulerSource: 'Manual Dispatch' } }];"
+      }
+    },
+    {
+      "id": "ecd9ba66-8683-4f81-89be-b45a5cad3bfc",
+      "name": "Set RunType - Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1320,
+        220
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: { workflowPackVersion: 'v23', runType: 'CONTENT_DAILY', scheduledAt: new Date().toISOString(), schedulerSource: 'Set RunType - Content' } }];"
+      }
+    },
+    {
+      "id": "a4f65d66-eedd-4b8e-885f-57b4ba350c89",
+      "name": "Set RunType - Draft Mining",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1320,
+        340
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: { workflowPackVersion: 'v23', runType: 'DRAFT_MINING', scheduledAt: new Date().toISOString(), schedulerSource: 'Set RunType - Draft Mining' } }];"
+      }
+    },
+    {
+      "id": "3f4657bd-e743-4651-b5d4-648ba0ab7b36",
+      "name": "Set RunType - 24h Analytics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1320,
+        460
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: { workflowPackVersion: 'v23', runType: 'ANALYTICS_24H', scheduledAt: new Date().toISOString(), schedulerSource: 'Set RunType - 24h Analytics' } }];"
+      }
+    },
+    {
+      "id": "f6994c8e-e6f1-4a39-b5fb-6bb2963385e5",
+      "name": "Set RunType - 72h Analytics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1320,
+        580
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: { workflowPackVersion: 'v23', runType: 'ANALYTICS_72H', scheduledAt: new Date().toISOString(), schedulerSource: 'Set RunType - 72h Analytics' } }];"
+      }
+    },
+    {
+      "id": "ff08e00b-b891-4a43-a4ec-6f5a208c7451",
+      "name": "Set RunType - 7d Analytics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1320,
+        700
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: { workflowPackVersion: 'v23', runType: 'ANALYTICS_7D', scheduledAt: new Date().toISOString(), schedulerSource: 'Set RunType - 7d Analytics' } }];"
+      }
+    },
+    {
+      "id": "87ea1945-3ee3-4f8c-a48c-f458db3dfd07",
+      "name": "Set RunType - Weekly Strategy",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1320,
+        820
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: { workflowPackVersion: 'v23', runType: 'WEEKLY_STRATEGY', scheduledAt: new Date().toISOString(), schedulerSource: 'Set RunType - Weekly Strategy' } }];"
+      }
+    },
+    {
+      "id": "ca528a51-4895-4700-acdc-e937c6ea07a9",
+      "name": "Set RunType - Milestone Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1320,
+        940
+      ],
+      "parameters": {
+        "jsCode": "return [{ json: { workflowPackVersion: 'v23', runType: 'MILESTONE_CHECK', scheduledAt: new Date().toISOString(), schedulerSource: 'Set RunType - Milestone Check' } }];"
+      }
+    },
+    {
+      "id": "33a1042f-352b-4f8a-b88b-60eff4bae49b",
+      "name": "Run Local Stack Wrapper",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -980,
+        400
+      ],
+      "parameters": {
+        "mode": "each",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Load Central Config').first().json.centralConfig.workflowBindings.localWrapperWorkflowId }}",
+          "cachedResultName": "Dynamic via Load Central Config: localWrapperWorkflowId"
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      }
+    },
+    {
+      "id": "7d4088fe-8c1e-4730-bf02-a407e1fe304a",
+      "name": "Run Lead Systems Wrapper",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -980,
+        620
+      ],
+      "parameters": {
+        "mode": "each",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Load Central Config').first().json.centralConfig.workflowBindings.leadWrapperWorkflowId }}",
+          "cachedResultName": "Dynamic via Load Central Config: leadWrapperWorkflowId"
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      }
+    },
+    {
+      "id": "c9ef720d-1918-4573-8999-0ad24225ecac",
+      "name": "Workflow Bindings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -60,
+        480
+      ],
+      "parameters": {
+        "jsCode": "const payload = $input.first().json || {};\nreturn [{\n  json: {\n    ...payload,\n    workflowPackVersion: payload.workflowPackVersion || 'v23',\n    centralConfigWorkflowId: payload.centralConfigWorkflowId || 'REPLACE_WITH_CENTRAL_CONFIG_WORKFLOW_ID'\n  }\n}];"
+      }
+    },
+    {
+      "parameters": {
+        "mode": "each",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Workflow Bindings').first().json.centralConfigWorkflowId }}",
+          "cachedResultName": "Dynamic via Workflow Bindings: centralConfigWorkflowId"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "7864f11d-9ccd-457a-8ca1-ada49e038997",
+      "name": "Load Central Config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        840,
+        360
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Start": {
+      "main": [
+        [
+          {
+            "node": "Manual Dispatch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily Content (10am weekdays)": {
+      "main": [
+        [
+          {
+            "node": "Set RunType - Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Afternoon Draft Mining (3pm weekdays)": {
+      "main": [
+        [
+          {
+            "node": "Set RunType - Draft Mining",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "24-Hour Analytics (12pm daily)": {
+      "main": [
+        [
+          {
+            "node": "Set RunType - 24h Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "72-Hour Analytics (1pm daily)": {
+      "main": [
+        [
+          {
+            "node": "Set RunType - 72h Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "7-Day Analytics (11am daily)": {
+      "main": [
+        [
+          {
+            "node": "Set RunType - 7d Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly Strategy (Monday 9am)": {
+      "main": [
+        [
+          {
+            "node": "Set RunType - Weekly Strategy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Milestone Check (9am daily)": {
+      "main": [
+        [
+          {
+            "node": "Set RunType - Milestone Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Dispatch": {
+      "main": [
+        [
+          {
+            "node": "Workflow Bindings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set RunType - Content": {
+      "main": [
+        [
+          {
+            "node": "Workflow Bindings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set RunType - Draft Mining": {
+      "main": [
+        [
+          {
+            "node": "Workflow Bindings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set RunType - 24h Analytics": {
+      "main": [
+        [
+          {
+            "node": "Workflow Bindings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set RunType - 72h Analytics": {
+      "main": [
+        [
+          {
+            "node": "Workflow Bindings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set RunType - 7d Analytics": {
+      "main": [
+        [
+          {
+            "node": "Workflow Bindings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set RunType - Weekly Strategy": {
+      "main": [
+        [
+          {
+            "node": "Workflow Bindings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set RunType - Milestone Check": {
+      "main": [
+        [
+          {
+            "node": "Workflow Bindings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Bindings": {
+      "main": [
+        [
+          {
+            "node": "Load Central Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Central Config": {
+      "main": [
+        [
+          {
+            "node": "Run Local Stack Wrapper",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Run Lead Systems Wrapper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "2d089120-1a99-4623-9bc5-07d115eb1a7f"
+}

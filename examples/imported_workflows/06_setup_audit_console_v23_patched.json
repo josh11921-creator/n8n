@@ -1,0 +1,199 @@
+{
+  "name": "Setup Audit Console v23 Debugged",
+  "id": "d0840c64-68bc-4b0e-9983-3a83dd5ed4e4",
+  "active": false,
+  "settings": {},
+  "nodes": [
+    {
+      "id": "edba7e09-d333-4f76-a320-a92c9d54f638",
+      "name": "Manual Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1000,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "7303ae36-abf4-4534-88cf-19ad564d2a8f",
+      "name": "Workflow Bindings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -760,
+        300
+      ],
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    workflowPackVersion: 'v23',\n    centralConfigWorkflowId: 'REPLACE_WITH_CENTRAL_CONFIG_WORKFLOW_ID'\n  }\n}];"
+      }
+    },
+    {
+      "id": "85af173d-db37-4828-829c-b7dcfecb2157",
+      "name": "Build Audit Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -520,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const cfg = $input.first().json || {};\nreturn [{\n  json: {\n    ...cfg,\n    workflowPackVersion: 'v23',\n    runType: 'SETUP_AUDIT',\n    scheduledAt: new Date().toISOString(),\n    schedulerSource: 'Setup Audit Console',\n    centralConfigReadiness: cfg.centralConfigReadiness || {}\n  }\n}];"
+      }
+    },
+    {
+      "id": "12c3017f-4dc7-4bf7-9dd3-b708e50dcc2d",
+      "name": "Run Local Stack Audit",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        -240,
+        180
+      ],
+      "parameters": {
+        "mode": "each",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Build Audit Payload').first().json.centralConfig.workflowBindings.localWrapperWorkflowId }}",
+          "cachedResultName": "Dynamic via Build Audit Payload: localWrapperWorkflowId"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "6a9d6f94-b0c1-4c7a-9554-88bcdc9cdaf0",
+      "name": "Run Lead Systems Audit",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        -240,
+        420
+      ],
+      "parameters": {
+        "mode": "each",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Build Audit Payload').first().json.centralConfig.workflowBindings.leadWrapperWorkflowId }}",
+          "cachedResultName": "Dynamic via Build Audit Payload: leadWrapperWorkflowId"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "a62eab98-b61e-4bc4-ac65-a330a72d70e9",
+      "name": "Summarize Audits",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const local = $items('Run Local Stack Audit', 0, 0).map(i => i.json || {});\nconst lead = $items('Run Lead Systems Audit', 0, 0).map(i => i.json || {});\nconst audits = [...local, ...lead];\nconst configReadiness = ($('Build Audit Payload').first().json || {}).centralConfigReadiness || {};\nconst setupReadyCount = audits.filter(a => a.setupReady).length;\nreturn [{\n  json: {\n    workflowPackVersion: 'v23',\n    audits,\n    setupReadyCount,\n    totalChannels: audits.length,\n    centralConfigReadiness: configReadiness,\n    nextStep: setupReadyCount === audits.length\n      ? 'Both wrappers look ready. Next, run one manual content test per channel.'\n      : 'Finish the missing fields and workflow bindings listed in each audit result.'\n  }\n}];"
+      }
+    },
+    {
+      "parameters": {
+        "mode": "each",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Workflow Bindings').first().json.centralConfigWorkflowId }}",
+          "cachedResultName": "Dynamic via Workflow Bindings: centralConfigWorkflowId"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "e6622c5d-2994-494a-bedb-b14291fbe5ac",
+      "name": "Load Central Config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -140,
+        260
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Start": {
+      "main": [
+        [
+          {
+            "node": "Workflow Bindings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Bindings": {
+      "main": [
+        [
+          {
+            "node": "Load Central Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Audit Payload": {
+      "main": [
+        [
+          {
+            "node": "Run Local Stack Audit",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Run Lead Systems Audit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Local Stack Audit": {
+      "main": [
+        [
+          {
+            "node": "Summarize Audits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Lead Systems Audit": {
+      "main": [
+        [
+          {
+            "node": "Summarize Audits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Central Config": {
+      "main": [
+        [
+          {
+            "node": "Build Audit Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

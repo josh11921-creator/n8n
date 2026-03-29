@@ -284,7 +284,10 @@
         "chatbot",
         "automation",
         "email",
-        "gmail"
+        "gmail",
+        "approval",
+        "failsafe",
+        "tos-safe"
       ],
       "keywords": [
         "generated",
@@ -295,11 +298,16 @@
         "sheets",
         "email",
         "approval",
-        "workflow"
+        "workflow",
+        "review",
+        "safe",
+        "distribution"
       ],
       "useCases": [
         "ai generated linkedin posts with openai, google sheets & email approval workflow",
-        "automate ai generated linkedin"
+        "automate ai generated linkedin",
+        "repurpose newsletter insights into linkedin with approval before publishing",
+        "grow audience with consistent social distribution while keeping human review in the loop"
       ],
       "complexity": "advanced"
     },
@@ -390,7 +398,9 @@
         "gmail",
         "automation",
         "scraping",
-        "data"
+        "data",
+        "risky",
+        "outbound"
       ],
       "keywords": [
         "scrape",
@@ -401,11 +411,13 @@
         "without",
         "third",
         "party",
-        "apis"
+        "apis",
+        "lead generation"
       ],
       "useCases": [
         "scrape business emails from google maps without the use of any third party apis",
-        "automate scrape business emails"
+        "automate scrape business emails",
+        "cold outbound lead generation with elevated compliance review requirements"
       ],
       "complexity": "advanced"
     },
@@ -787,7 +799,7 @@
       "id": "FIdLhfE1md7YYU2c",
       "file": "FIdLhfE1md7YYU2c.json",
       "name": "ai-marketing-report-(google-analytics-&-ads,-meta-ads),-sent-via-email_telegram",
-      "category": "Data/Scraping",
+      "category": "Marketing/Analytics",
       "description": "Automated workflow: ai marketing report (google analytics & ads, meta ads), sent via email telegram",
       "tags": [
         "telegram",
@@ -796,8 +808,10 @@
         "email",
         "gmail",
         "automation",
-        "scraping",
-        "data"
+        "analytics",
+        "reporting",
+        "roi",
+        "revenue"
       ],
       "keywords": [
         "marketing",
@@ -809,11 +823,15 @@
         "ads),",
         "sent",
         "email",
-        "telegram"
+        "telegram",
+        "roas",
+        "performance"
       ],
       "useCases": [
         "ai marketing report (google analytics & ads, meta ads), sent via email telegram",
-        "automate ai marketing report"
+        "automate ai marketing report",
+        "monitor marketing roi and ad performance with a weekly revenue feedback loop",
+        "find growth wins faster by turning analytics into simple executive summaries"
       ],
       "complexity": "advanced"
     },
@@ -1072,18 +1090,26 @@
       "tags": [
         "email",
         "gmail",
-        "automation"
+        "automation",
+        "retention",
+        "lifecycle",
+        "revenue"
       ],
       "keywords": [
         "personalize",
         "marketing",
         "emails",
         "customer",
-        "data"
+        "data",
+        "retention",
+        "upsell",
+        "winback"
       ],
       "useCases": [
         "personalize marketing emails using customer data and ai",
-        "automate personalize marketing emails"
+        "automate personalize marketing emails",
+        "increase revenue with lifecycle email campaigns for existing customers",
+        "win back unhappy customers with personalized follow-up and offers"
       ],
       "complexity": "intermediate"
     },
@@ -1453,7 +1479,9 @@
         "chatbot",
         "automation",
         "email",
-        "gmail"
+        "gmail",
+        "distribution",
+        "audience"
       ],
       "keywords": [
         "transform",
@@ -1463,11 +1491,15 @@
         "insightful",
         "linkedin",
         "posts",
-        "openai"
+        "openai",
+        "repurpose",
+        "audience"
       ],
       "useCases": [
         "transform gmail newsletters into insightful linkedin posts using openai",
-        "automate transform gmail newsletters"
+        "automate transform gmail newsletters",
+        "turn owned email content into social posts to grow reach and subscribers",
+        "repurpose newsletter content into linkedin distribution with minimal extra work"
       ],
       "complexity": "advanced"
     },
@@ -2243,7 +2275,9 @@
         "crm",
         "leads",
         "scraping",
-        "data"
+        "data",
+        "risky",
+        "outbound"
       ],
       "keywords": [
         "scrape",
@@ -2253,11 +2287,13 @@
         "maps",
         "openai",
         "sheets",
-        "free"
+        "free",
+        "lead generation"
       ],
       "useCases": [
         "scrape business leads from google maps using openai and google sheets  use for free",
-        "automate scrape business leads"
+        "automate scrape business leads",
+        "cold outbound lead generation with elevated compliance review requirements"
       ],
       "complexity": "advanced"
     },
@@ -2357,7 +2393,10 @@
         "chatbot",
         "automation",
         "email",
-        "gmail"
+        "gmail",
+        "newsletter",
+        "subscriber growth",
+        "owned audience"
       ],
       "keywords": [
         "personalized",
@@ -2365,11 +2404,15 @@
         "newsletter",
         "rss,",
         "openai",
-        "gmail"
+        "gmail",
+        "subscribers",
+        "audience"
       ],
       "useCases": [
         "personalized ai tech newsletter using rss, openai and gmail",
-        "automate personalized ai tech"
+        "automate personalized ai tech",
+        "grow subscribers with a high-value opt-in newsletter built from first-party content sources",
+        "build an owned audience with a simple recurring newsletter workflow"
       ],
       "complexity": "advanced"
     },

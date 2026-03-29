@@ -59,6 +59,50 @@ interface TemplatesData {
   templates: TemplateMetadata[];
 }
 
+interface TemplateSelection {
+  template: TemplateMetadata;
+  score: number;
+  reasons: string[];
+}
+
+const GROWTH_INTENTS = {
+  subscribers: ['subscriber', 'subscribers', 'newsletter', 'audience', 'email list', 'list growth', 'opt in', 'opt-in'],
+  revenue: ['revenue', 'sales', 'roi', 'conversion', 'convert', 'retention', 'upsell', 'winback', 'lifecycle', 'monetize'],
+  safety: ['tos safe', 'safe', 'compliant', 'approval', 'approved', 'review', 'draft', 'human', 'first party', 'permission', 'failsafe', 'reliable'],
+  simplicity: ['simple', 'simpl', 'lean', 'fast', 'quick', 'quickly', 'high roi', 'low lift', 'easy'],
+  analytics: ['analytics', 'ga4', 'google analytics', 'report', 'ads', 'meta ads', 'google ads', 'roas', 'attribution'],
+  content: ['linkedin', 'social', 'content', 'posts', 'publish', 'distribution', 'repurpose'],
+} as const;
+
+function normalizeText(text: string): string {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function tokenizeText(text: string): string[] {
+  return [...new Set(normalizeText(text).split(/\s+/).filter(term => term.length > 1))];
+}
+
+function includesAny(text: string, values: readonly string[]): boolean {
+  return values.some(value => text.includes(normalizeText(value)));
+}
+
+function addReason(reasons: string[], reason: string): void {
+  if (!reasons.includes(reason)) {
+    reasons.push(reason);
+  }
+}
+
+function getTemplateSearchText(template: TemplateMetadata): string {
+  return normalizeText([
+    template.name,
+    template.category,
+    template.description,
+    ...template.tags,
+    ...template.keywords,
+    ...template.useCases,
+  ].join(' '));
+}
+
 function loadTemplatesMetadata(): TemplatesData {
   try {
     const metadataPath = join(__dirname, '../examples/templates-metadata.json');
@@ -81,45 +125,133 @@ function loadTemplateFile(filename: string): any {
   }
 }
 
-function findBestTemplate(userRequest: string, templates: TemplateMetadata[]): TemplateMetadata | null {
+function scoreTemplateSelection(userRequest: string, template: TemplateMetadata): TemplateSelection {
+  const requestText = normalizeText(userRequest);
+  const searchTerms = tokenizeText(userRequest);
+  const templateText = getTemplateSearchText(template);
+  const normalizedKeywords = template.keywords.map(normalizeText);
+  const normalizedTags = template.tags.map(normalizeText);
+  const normalizedUseCases = template.useCases.map(normalizeText);
+  const normalizedName = normalizeText(template.name);
+  const normalizedDescription = normalizeText(template.description);
+  const normalizedCategory = normalizeText(template.category);
+  const reasons: string[] = [];
+  let score = 0;
+
+  searchTerms.forEach(term => {
+    if (normalizedKeywords.some(keyword => keyword.includes(term) || term.includes(keyword))) {
+      score += 5;
+    }
+    if (normalizedTags.some(tag => tag.includes(term) || term.includes(tag))) {
+      score += 3;
+    }
+    if (normalizedName.includes(term)) {
+      score += 4;
+    }
+    if (normalizedDescription.includes(term)) {
+      score += 2;
+    }
+    if (normalizedUseCases.some(useCase => useCase.includes(term))) {
+      score += 6;
+    }
+    if (normalizedCategory.includes(term)) {
+      score += 2;
+    }
+  });
+
+  const wantsSubscribers = includesAny(requestText, GROWTH_INTENTS.subscribers);
+  const wantsRevenue = includesAny(requestText, GROWTH_INTENTS.revenue);
+  const wantsSafety = includesAny(requestText, GROWTH_INTENTS.safety);
+  const wantsSimplicity = includesAny(requestText, GROWTH_INTENTS.simplicity);
+  const wantsAnalytics = includesAny(requestText, GROWTH_INTENTS.analytics);
+  const wantsContent = includesAny(requestText, GROWTH_INTENTS.content);
+
+  const isNewsletter = includesAny(templateText, ['newsletter', 'rss']);
+  const isEmail = normalizedCategory.includes('communication email') || includesAny(templateText, ['email', 'gmail']);
+  const isAnalytics = includesAny(templateText, ['analytics', 'report', 'roas', 'ads', 'google ads', 'meta ads']);
+  const isApprovalBased = includesAny(templateText, ['approval', 'draft', 'review']);
+  const isSocialDistribution = includesAny(templateText, ['linkedin', 'social media', 'posts', 'distribution', 'repurpose']);
+  const isScraping = normalizedCategory.includes('data scraping') || includesAny(templateText, ['scrape', 'scraping', 'google maps']);
+  const isColdOutbound = includesAny(templateText, ['cold calling', 'cold outreach']);
+  const isIntermediate = template.complexity.toLowerCase() === 'intermediate';
+  const isAdvanced = template.complexity.toLowerCase() === 'advanced';
+
+  if (wantsSubscribers && isNewsletter) {
+    score += 18;
+    addReason(reasons, 'Strong fit for growing an owned audience with a newsletter.');
+  }
+
+  if (wantsSubscribers && isEmail && !isScraping) {
+    score += 8;
+    addReason(reasons, 'Uses first-party email channels that are safer for subscriber growth.');
+  }
+
+  if (wantsRevenue && isEmail && includesAny(templateText, ['marketing', 'customer data', 'coupon', 'feedback'])) {
+    score += 16;
+    addReason(reasons, 'Supports revenue growth with personalized lifecycle email automation.');
+  }
+
+  if ((wantsRevenue || wantsAnalytics) && isAnalytics) {
+    score += 18;
+    addReason(reasons, 'Improves ROI by feeding analytics and ad performance back into decisions.');
+  }
+
+  if ((wantsSafety || wantsContent) && isApprovalBased) {
+    score += 12;
+    addReason(reasons, 'Includes an approval or draft step to reduce accidental sends or posts.');
+  }
+
+  if (wantsContent && isSocialDistribution) {
+    score += 10;
+    addReason(reasons, 'Helps repurpose content into distribution channels without building a large system.');
+  }
+
+  if (wantsSimplicity && isIntermediate) {
+    score += 8;
+    addReason(reasons, 'Intermediate complexity is faster to operationalize than the heavier templates.');
+  }
+
+  if (wantsSimplicity && isAdvanced) {
+    score -= 6;
+    addReason(reasons, 'Less ideal for a simple rollout because this template is marked advanced.');
+  }
+
+  if (wantsSafety && isScraping) {
+    score -= 25;
+    addReason(reasons, 'Penalized because scraping-heavy workflows are harder to keep ToS-safe.');
+  }
+
+  if (wantsSafety && isColdOutbound) {
+    score -= 15;
+    addReason(reasons, 'Penalized because cold outbound flows are riskier than owned-audience automations.');
+  }
+
+  return {
+    template,
+    score,
+    reasons: reasons.slice(0, 4),
+  };
+}
+
+function findBestTemplateMatch(userRequest: string, templates: TemplateMetadata[]): TemplateSelection | null {
   if (!userRequest || templates.length === 0) {
     return null;
   }
 
-  const searchTerms = userRequest.toLowerCase().split(/\s+/);
-  const scores = templates.map(template => {
-    let score = 0;
-
-    // Score based on keywords
-    searchTerms.forEach(term => {
-      if (template.keywords.some(kw => kw.includes(term) || term.includes(kw))) {
-        score += 5;
-      }
-      if (template.tags.some(tag => tag.includes(term) || term.includes(tag))) {
-        score += 3;
-      }
-      if (template.name.toLowerCase().includes(term)) {
-        score += 4;
-      }
-      if (template.description.toLowerCase().includes(term)) {
-        score += 2;
-      }
-      if (template.useCases.some(uc => uc.toLowerCase().includes(term))) {
-        score += 6;
-      }
-    });
-
-    return { template, score };
-  });
+  const scores = templates.map(template => scoreTemplateSelection(userRequest, template));
 
   // Sort by score and return the best match
   scores.sort((a, b) => b.score - a.score);
 
   if (scores[0] && scores[0].score > 0) {
-    return scores[0].template;
+    return scores[0];
   }
 
   return null;
+}
+
+function findBestTemplate(userRequest: string, templates: TemplateMetadata[]): TemplateMetadata | null {
+  return findBestTemplateMatch(userRequest, templates)?.template ?? null;
 }
 
 // ========== TOOL SCHEMAS ==========
@@ -1118,6 +1250,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     if (name === 'n8n_get_workflow_template') {
       const templatesData = loadTemplatesMetadata();
+      let selectedMatch: TemplateSelection | null = null;
       let selectedTemplate: TemplateMetadata | null = null;
 
       // If templateId provided, use it
@@ -1126,7 +1259,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
       // Otherwise, find best match based on user request
       else if ((args as any).userRequest) {
-        selectedTemplate = findBestTemplate((args as any).userRequest, templatesData.templates);
+        selectedMatch = findBestTemplateMatch((args as any).userRequest, templatesData.templates);
+        selectedTemplate = selectedMatch?.template ?? null;
       }
 
       if (!selectedTemplate) {
@@ -1155,6 +1289,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const result = {
         metadata: selectedTemplate,
         workflow: workflowData,
+        selection: selectedMatch ? {
+          score: selectedMatch.score,
+          reasons: selectedMatch.reasons,
+        } : undefined,
         message: `Found template: ${selectedTemplate.name}`
       };
 
@@ -1165,6 +1303,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     if (name === 'n8n_create_workflow_from_template') {
       const templatesData = loadTemplatesMetadata();
+      let selectedMatch: TemplateSelection | null = null;
       let selectedTemplate: TemplateMetadata | null = null;
 
       // If templateId provided, use it
@@ -1173,7 +1312,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
       // Otherwise, find best match based on user request
       else if ((args as any).userRequest) {
-        selectedTemplate = findBestTemplate((args as any).userRequest, templatesData.templates);
+        selectedMatch = findBestTemplateMatch((args as any).userRequest, templatesData.templates);
+        selectedTemplate = selectedMatch?.template ?? null;
       }
 
       if (!selectedTemplate) {
@@ -1246,6 +1386,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         success: true,
         workflow: createResult.data,
         template: selectedTemplate,
+        selection: selectedMatch ? {
+          score: selectedMatch.score,
+          reasons: selectedMatch.reasons,
+        } : undefined,
         message: `Successfully created workflow from template: ${selectedTemplate.name}`,
         url: createResult.data?.id ? `${N8N_BASE_URL}/workflow/${createResult.data.id}` : undefined
       };

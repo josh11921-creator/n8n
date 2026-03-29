@@ -2471,22 +2471,27 @@
     {
       "id": "ytKgfEaDImS0HBTU",
       "file": "ytKgfEaDImS0HBTU.json",
-      "name": "Twitter_Virtual_AI_Influencer",
+      "name": "Twitter_Dual_Niche_AI_Influencer_Builder_Mindset_and_AI_Workflow",
       "category": "Social Media/Marketing",
-      "description": "Automated workflow: Twitter Virtual AI Influencer",
+      "description": "Automated workflow: dual-niche Twitter/X influencer for Builder Mindset and AI Workflow content",
       "tags": [
-        "social media",
+        "content",
         "marketing",
-        "content"
+        "social media"
       ],
       "keywords": [
         "twitter",
-        "virtual",
-        "influencer"
+        "x",
+        "dual niche",
+        "builder mindset",
+        "ai workflow",
+        "solopreneur",
+        "automation",
+        "content"
       ],
       "useCases": [
-        "twitter virtual ai influencer",
-        "automate twitter virtual ai"
+        "run a dual niche creator strategy on x with builder mindset and ai workflow content",
+        "automate twitter posting for growth and monetization"
       ],
       "complexity": "intermediate"
     },

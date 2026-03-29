@@ -2,7 +2,7 @@
   "createdAt": "2025-07-14T19:07:48.096Z",
   "updatedAt": "2025-07-14T19:07:48.096Z",
   "id": "ytKgfEaDImS0HBTU",
-  "name": "Twitter_Virtual_AI_Influencer",
+  "name": "Twitter_Dual_Niche_AI_Influencer_Builder_Mindset_and_AI_Workflow",
   "active": false,
   "isArchived": false,
   "nodes": [
@@ -69,7 +69,7 @@
     },
     {
       "parameters": {
-        "content": "## Configure influencer profile \nSet your target niche, writing style, and inspiration.\n",
+        "content": "## Configure dual-niche profile\nSet your primary/secondary niches, writing style, and inspiration for a growth + monetization strategy.",
         "height": 265,
         "width": 389
       },
@@ -185,27 +185,27 @@
         "messages": {
           "values": [
             {
-              "content": "=You are a successful modern Twitter influencer. Your tweets always go viral. ",
+              "content": "=You are a modern creator focused on both audience growth and monetization. Your posts are clear, actionable, and high-trust.",
               "role": "system"
             },
             {
-              "content": "=You have a specific writing style: {{ $json.style }}",
+              "content": "=Your writing style is: {{ $json.style }}",
               "role": "system"
             },
             {
-              "content": "=You follow the principles described in your inspiration sources closely and you write your tweets based on that: {{ $json.inspiration }}",
+              "content": "=Your inspiration and references are: {{ $json.inspiration }}",
               "role": "system"
             },
             {
-              "content": "=You have a very specific niche: {{ $json.niche }}",
+              "content": "=You operate with a dual-niche strategy. Primary niche: {{ $json.niche_primary }}. Secondary niche: {{ $json.niche_secondary }}. Current content mode: {{ $json.content_mode }}.",
               "role": "system"
             },
             {
-              "content": "=Answer with the viral tweet and nothing else as a response. Keep the tweet within 280 characters. Current date and time are {{DateTime.now()}}. Add hashtags and emojis where relevant.",
+              "content": "=Return only the post text and nothing else. Keep it within 280 characters. Current date/time: {{DateTime.now()}}. Use 1-3 relevant hashtags and optional emojis only when natural.",
               "role": "system"
             },
             {
-              "content": "Write a tweet that is certain to go viral. Take your time in writing it. Think. Use the vast knowledge you have."
+              "content": "Write one high-performing post that matches the dual-niche strategy. If content_mode is Builder, focus on mindset for solopreneurs. If content_mode is AI Workflow, focus on practical automation systems and business outcomes."
             }
           ]
         },
@@ -227,21 +227,33 @@
           "assignments": [
             {
               "id": "45268b04-68a1-420f-9ad2-950844d16af1",
-              "name": "niche",
+              "name": "niche_primary",
               "type": "string",
-              "value": "Modern Stoicism. You tweet about the greatest stoics, their ideas, their quotes, and how their wisdom applies in today's modern life. You love sharing personal stories and experiences."
+              "value": "Builder Mindset for Solopreneurs: personal leverage, consistency, positioning, and practical business habits."
             },
             {
               "id": "d95f4a1c-ab1c-4eca-8732-3d7a087f82d8",
               "name": "style",
               "type": "string",
-              "value": "All of your tweets are very personal. "
+              "value": "Direct, practical, and personal. Use concise hooks, clear takeaways, and concrete examples. No fluff or generic motivational lines."
             },
             {
               "id": "1ee088f7-7021-48c0-bcb7-d1011eb0db3d",
               "name": "inspiration",
               "type": "string",
-              "value": "Your inspiration comes from tens of books on stoicism, psychology, and how to influence people. Books such as \"Contagious\" by Jonah Bergen, \"How To Be Internet Famous\" by Brendan Cox, \"How to Win Friends and Influence People\" by Dale Carnegie, and \"Influencers and Creators\" by  Robert V Kozinets, Ulrike Gretzel, Rossella Gambetti strongly influence the way you write your tweets. "
+              "value": "Inspiration comes from creator-led business operators, behavioral psychology, persuasion, and real-world automation case studies for small teams and solopreneurs."
+            },
+            {
+              "id": "dual-niche-secondary-001",
+              "name": "niche_secondary",
+              "type": "string",
+              "value": "AI Workflow Systems for business: automation playbooks, tool stacks, and ROI-driven implementations."
+            },
+            {
+              "id": "dual-niche-mode-001",
+              "name": "content_mode",
+              "type": "string",
+              "value": "Builder (70%)"
             }
           ]
         },
@@ -258,7 +270,7 @@
     },
     {
       "parameters": {
-        "content": "## Twitter Virtual AI Influencer Workflow Template\nThis n8n workflow template empowers creators to launch a virtual AI influencer that tweets regularly, engaging audiences with a unique niche, writing style, and inspiration. By automating content creation and posting, it ensures a consistent and natural online presence, tailored to your specific influencer profile.\n\n## Features\nScheduled Posting: Automates tweet posting every 6 hours, with randomized posting minutes to mimic natural activity.\nOn-Demand Posting: Offers flexibility with manual trigger options for immediate content sharing.\nInfluencer Profile Configuration: Customize your virtual influencer by defining a target niche, personal writing style, and sources of inspiration.\nContent Generation: Leverages advanced AI to craft tweets that resonate with your audience, aiming for viral engagement.\nTweet Validation: Ensures all generated content adheres to Twitter's character limit, maintaining quality and relevance.\n\n## Workflow Steps\n-Schedule Posting: Configured to post every 6 hours, this step introduces randomness in posting time to simulate human behavior.\n-Trigger Posting Manually: Provides an option to manually initiate a tweet, offering control over the timing of your content.\n-Configure Influencer Profile: Set up your influencer's niche, style, and inspiration to guide the AI in generating targeted content.\n-Generate Tweet Content: Utilizes a sophisticated AI model to produce engaging tweets based on the configured profile.\n-Validate Tweet: Checks if the generated tweet meets Twitter's length constraints, ensuring all content is ready for posting.\n-Post Tweet: Finalizes the process by sharing the AI-generated tweet to your designated Twitter account.\n\n## Configuration Notes\nNiche: Define a specific area of interest, such as \"Modern Stoicism,\" to focus your influencer's content.\nWriting Style: Customize the tone and style of the tweets to reflect a personal touch, enhancing relatability.\nInspiration: Input sources of inspiration, including books and philosophies, to steer the content generation process.\n\n## Getting Started\nTo deploy this template:\n\n-Import the workflow into your n8n workspace.\n-Customize the influencer profile settings to match your desired niche, style, and inspiration.\n-Connect your Twitter account through the provided OAuth2 credentials setup.\n-Activate the workflow to start building your virtual influencer's presence on Twitter.\n\nEmbrace the power of AI to create a distinctive and engaging virtual influencer, captivating your audience with minimal effort.",
+        "content": "## Twitter Dual-Niche AI Influencer Workflow Template\nThis workflow runs a two-niche strategy designed for both outcomes: audience growth and monetization.\n\n### Niche Pair\n- Primary (Growth): Builder Mindset for Solopreneurs\n- Secondary (Monetization): AI Workflow Systems for business\n\n### Operating Model\n- Default split: 70% Builder content, 30% AI Workflow content\n- Builder posts drive reach, trust, and follower growth\n- AI Workflow posts drive buyer intent and monetization\n\n### Workflow Steps\n- Schedule or manually trigger posting\n- Configure dual-niche profile\n- Generate a post aligned to current content_mode\n- Validate length constraints\n- Publish to X\n\n### How to use\n1. Keep `content_mode` as `Builder (70%)` for 2 of 3 posts\n2. Switch to `AI Workflow (30%)` for every 3rd post\n3. Adjust style and inspiration based on what performs best\n4. Track saves, replies, and profile clicks to refine prompts\n",
         "height": 1145,
         "width": 689
       },
@@ -372,7 +384,7 @@
         "createdAt": "2025-10-25T12:28:30.681Z",
         "updatedAt": "2025-10-25T12:30:12.034Z",
         "id": "gRDCuWZgtIsQJhnE",
-        "name": "Leonardo Sepúlveda <lsepulvedatabares@gmail.com>",
+        "name": "Leonardo Sep\u00falveda <lsepulvedatabares@gmail.com>",
         "type": "personal",
         "icon": null,
         "description": null

@@ -1,0 +1,130 @@
+{
+  "id": "D2wqVr1AEI8Fiwo8",
+  "name": "Local Stack AI v24 Wrapper Maxed",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "nodes": [
+    {
+      "id": "b13354a6-e265-452d-a990-12c60c475863",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [220, 280],
+      "parameters": { "inputSource": "passthrough" }
+    },
+    {
+      "id": "6188c14e-5f1f-421c-95d3-0518bcd7743a",
+      "name": "Prepare Wrapper Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 280],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const incoming = $input.first().json || {};\nconst centralConfig = incoming.centralConfig || {};\nconst globalConfig = centralConfig.globalConfig || {};\nconst channelConfig = (centralConfig.channels || {}).localStackAi || {};\nconst bindings = centralConfig.workflowBindings || {};\nconst cfg = { ...globalConfig, ...channelConfig, ...incoming };\nconst requestedRunType = String(cfg.requestedRunType || cfg.runType || 'CONTENT_DAILY').toUpperCase();\nconst isUnset = (value) => {\n  if (value === undefined || value === null) return true;\n  const text = String(value).trim();\n  if (!text) return true;\n  const upper = text.toUpperCase();\n  return upper.includes('PASTE_') || upper.includes('REPLACE_WITH_') || upper.includes('YOUR_') || upper.startsWith('DEMO-') || text.includes('example.com');\n};\nconst requiredFields = ['groqApiKey', 'flikiApiKey', 'googleSheetId', 'uploadPostApiKey', 'slackWebhook', 'youtubeChannelId', 'youtubeChannelUrl', 'mainSiteUrl', 'mainOfferUrl'];\nconst missingFieldNames = requiredFields.filter(key => isUnset(cfg[key]));\nconst sharedContentWorkflowId = cfg.sharedContentWorkflowId || bindings.sharedContentWorkflowId || 'ZHXBmDQ7mhI8lEoH';\nconst sharedAnalyticsWorkflowId = cfg.sharedAnalyticsWorkflowId || bindings.sharedAnalyticsWorkflowId || '7MbU3Q9mCewtH7xw';\nconst sharedStrategyWorkflowId = cfg.sharedStrategyWorkflowId || bindings.sharedStrategyWorkflowId || 'pMFr3Sgak21AIOPx';\nconst missingBindings = [['sharedContentWorkflowId', sharedContentWorkflowId], ['sharedAnalyticsWorkflowId', sharedAnalyticsWorkflowId], ['sharedStrategyWorkflowId', sharedStrategyWorkflowId]].filter(([, v]) => isUnset(v)).map(([k]) => k);\nconst setupReady = missingFieldNames.length === 0 && missingBindings.length === 0;\nconst policyBlocked = cfg.maintenanceMode === true || cfg.enabled === false || cfg.channelEnabled === false;\nconst testModeBlocked = String(cfg.globalMode || 'LIVE').toUpperCase() === 'TEST' && !cfg.allowContentInTestMode;\nconst lockWindowMinutes = Number(cfg.runLockWindowMinutes || 90);\nconst minuteBucket = Math.floor(Date.now() / (Math.max(lockWindowMinutes, 1) * 60 * 1000));\nconst runLockKey = ['localStackAi', requestedRunType, minuteBucket].join(':');\nlet status = 'READY_TO_ROUTE';\nlet targetWorkflowId = '';\nlet reason = '';\nif (requestedRunType === 'SETUP_AUDIT') {\n  status = 'SETUP_AUDIT_COMPLETE';\n  reason = setupReady ? 'Setup ready' : 'Setup missing fields or bindings';\n} else if (!setupReady) {\n  status = 'WRAPPER_BLOCKED';\n  reason = 'Missing required setup fields or bindings: ' + missingFieldNames.join(', ');\n} else if (policyBlocked) {\n  status = 'WRAPPER_BLOCKED';\n  reason = 'Blocked by maintenance/channel policy';\n} else if (testModeBlocked) {\n  status = 'WRAPPER_BLOCKED';\n  reason = 'Blocked because globalMode=TEST and allowContentInTestMode=false';\n} else if (['CONTENT_DAILY', 'DRAFT_MINING', 'CONTENT_SHORTS'].includes(requestedRunType)) {\n  if (cfg.allowContent === false) { status = 'WRAPPER_BLOCKED'; reason = 'Content runs disabled for channel'; }\n  else if (requestedRunType === 'CONTENT_SHORTS' && cfg.shortsEnabled === false) { status = 'WRAPPER_BLOCKED'; reason = 'Shorts disabled for this channel'; }\n  else { targetWorkflowId = sharedContentWorkflowId; }\n} else if (requestedRunType.startsWith('ANALYTICS_')) {\n  if (cfg.allowAnalytics === false || cfg.analyticsEnabled === false) { status = 'WRAPPER_BLOCKED'; reason = 'Analytics runs disabled for channel'; }\n  else { targetWorkflowId = sharedAnalyticsWorkflowId; }\n} else if (['WEEKLY_STRATEGY', 'MILESTONE_CHECK'].includes(requestedRunType)) {\n  if (cfg.allowStrategy === false || cfg.strategyEnabled === false) { status = 'WRAPPER_BLOCKED'; reason = 'Strategy runs disabled for channel'; }\n  else { targetWorkflowId = sharedStrategyWorkflowId; }\n} else {\n  status = 'SKIPPED_UNSUPPORTED_RUN';\n  reason = 'Unsupported run type in wrapper: ' + requestedRunType;\n}\nconst deadLetter = (status === 'WRAPPER_BLOCKED' || status === 'SKIPPED_UNSUPPORTED_RUN') ? { channelKey: 'localStackAi', channelName: cfg.channelName || 'Local Stack AI', runType: requestedRunType, reason, missingFieldNames, missingBindings, at: new Date().toISOString() } : null;\nreturn [{ json: { ...cfg, channelKey: 'localStackAi', channelName: cfg.channelName || 'Local Stack AI', workflowPackVersion: cfg.workflowPackVersion || 'v24', requestedRunType, runType: requestedRunType, sharedContentWorkflowId, sharedAnalyticsWorkflowId, sharedStrategyWorkflowId, missingFieldNames, missingBindings, setupReady, status, reason, targetWorkflowId, setupAudit: requestedRunType === 'SETUP_AUDIT', runLockKey, deadLetter } }];"
+      }
+    },
+    {
+      "id": "3d014a1a-0a19-4e5d-9e25-acb1c79ebcc1",
+      "name": "Wrapper Route",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [780, 280],
+      "parameters": {
+        "mode": "expression",
+        "numberOutputs": 2,
+        "output": "={{ $json.targetWorkflowId ? 0 : 1 }}"
+      }
+    },
+    {
+      "id": "07e7f9b6-7d24-4a8e-82f3-0ce73df5c9e9",
+      "name": "Execute Routed Shared Engine",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [1060, 220],
+      "parameters": {
+        "source": "database",
+        "workflowId": { "__rl": true, "mode": "id", "value": "={{ $json.targetWorkflowId }}" },
+        "mode": "each",
+        "options": { "waitForSubWorkflow": true }
+      }
+    },
+    {
+      "id": "0b93d040-293c-4f33-b31c-a411f14e2437",
+      "name": "Normalize Engine Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 220],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const payload = $input.first().json || {};\nconst riskFlags = Array.isArray(payload.riskFlags) ? payload.riskFlags : [];\nconst publishBlockedByRisk = riskFlags.length > 0;\nlet status = payload.status || 'WRAPPER_COMPLETE';\nlet reason = payload.reason || '';\nif (publishBlockedByRisk) { status = 'PUBLISH_BLOCKED_RISK'; reason = 'Risk flags detected; publish path disabled'; }\nconst slackWebhook = payload.slackWebhook || '';\nconst isWin = payload.status === 'ANALYTICS_COMPLETE' && payload.metrics && parseFloat(String(payload.metrics.subsPerDay || '0')) >= (payload.velocityTargets?.subsPerDayTarget || 10);\nconst slackMessage = isWin && slackWebhook && !slackWebhook.startsWith('https://hooks.slack.com/services/T00000')\n  ? 'WIN: ' + (payload.channelName || 'Local Stack AI') + ' hit ' + payload.metrics.subsPerDay + ' subs/day (' + payload.analyticsWindow + '). Offer CVR: ' + payload.metrics.offerCvr + '%. Top action: ' + (payload.aiInterpretation?.topAction || 'N/A')\n  : null;\nreturn [{ json: { ...payload, status, reason, publishBlockedByRisk, publishEligible: !publishBlockedByRisk && payload.publishReady !== false, isWin, slackMessage, deadLetter: publishBlockedByRisk ? { channelKey: 'localStackAi', channelName: payload.channelName || 'Local Stack AI', runType: payload.runType, reason, riskFlags, at: new Date().toISOString() } : (payload.deadLetter || null) } }];"
+      }
+    },
+    {
+      "id": "slack-win-check",
+      "name": "Should Send Slack Win",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1540, 220],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "win-check", "leftValue": "={{ $json.slackMessage }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty" } }],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "slack-win-notify",
+      "name": "Send Slack Win Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1760, 160],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.slackWebhook }}",
+        "sendBody": true,
+        "contentType": "json",
+        "body": {
+          "text": "={{ $json.slackMessage }}"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "03e7ed87-47b2-4b2c-b9ea-f34ba5ac20b8",
+      "name": "Return Wrapper Decision",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1060, 360],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "return [{ json: $input.first().json || {} }];"
+      }
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": { "main": [[{ "node": "Prepare Wrapper Payload", "type": "main", "index": 0 }]] },
+    "Prepare Wrapper Payload": { "main": [[{ "node": "Wrapper Route", "type": "main", "index": 0 }]] },
+    "Wrapper Route": {
+      "main": [
+        [{ "node": "Execute Routed Shared Engine", "type": "main", "index": 0 }],
+        [{ "node": "Return Wrapper Decision", "type": "main", "index": 0 }]
+      ]
+    },
+    "Execute Routed Shared Engine": { "main": [[{ "node": "Normalize Engine Result", "type": "main", "index": 0 }]] },
+    "Normalize Engine Result": { "main": [[{ "node": "Should Send Slack Win", "type": "main", "index": 0 }]] },
+    "Should Send Slack Win": {
+      "main": [
+        [{ "node": "Send Slack Win Alert", "type": "main", "index": 0 }],
+        []
+      ]
+    }
+  }
+}
